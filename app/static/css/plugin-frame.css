@@ -1,0 +1,266 @@
+/* The plugin frame (plugin-frame.html): a title bar above a plugin's editor
+   and a control bar below it. The editor is a separate native window laid over
+   .pf-body by the desktop shell; the body only shows around an editor smaller
+   than the frame. Nothing of this page can be drawn over the editor (a native
+   window covers HTML), so everything stays inside the two bars (and the
+   scroll bars' gutters, for an editor bigger than the room). Colors come
+   from style.css's tokens, so light/dark follow the main window.
+
+   Narrow frames (small plugins; the shell's narrowest frame is 200 px) get a
+   compact layout through container queries on the page (`pf`):
+     < 360 px  title bar: a camera icon instead of "Capture ▾", slimmer buttons
+     < 320 px  control bar: [A] / [B] instead of Auto / Bypass, smaller knobs
+               whose value shows on hover, focus or drag (their label otherwise) */
+
+:root {
+  /* Set from the shell's plugin_frame_info (titleHeight, controlsHeight); it
+     sizes the window from the same values. */
+  --pf-title-h: 34px;
+  --pf-controls-h: 36px;
+  --pf-bar-bg: var(--bg-popover);
+  /* Dark in both themes: plugin editors are mostly dark. Same as the main app's dark surfaces. */
+  --pf-body: color-mix(in srgb, var(--vext-black) 76%, var(--vext-jet));
+  --pf-body-fg: var(--vext-steel);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --pf-body: var(--vext-black); }
+}
+:root[data-theme="dark"] { --pf-body: var(--vext-black); }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  display: flex;
+  flex-direction: column;
+  container: pf / inline-size;
+  background: var(--pf-body);
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+/* ---------- title bar ---------- */
+
+.pf-bar {
+  --pf-gap: 8px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--pf-gap);
+  min-width: 0;
+  height: var(--pf-title-h);
+  padding: 0 4px 0 12px;
+  background: var(--pf-bar-bg);
+  border-bottom: 1px solid var(--separator);
+  touch-action: none;
+}
+
+.pf-name {
+  flex: 1 1 auto;
+  min-width: min(56px, 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.pf-note {
+  /* Gives way before the name does (a narrow frame keeps the plugin's name readable). */
+  flex: 0 4 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+/* Empty: takes no room, its gap included (still in the page: a live region must stay to be announced). */
+.pf-note:empty { margin-left: calc(-1 * var(--pf-gap)); }
+.pf-note.ok { color: var(--ok); }
+.pf-note.err { color: var(--danger); }
+
+.pf-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+button.pf-capture {
+  height: 24px;
+  margin-right: 6px;
+  padding: 0 7px 0 9px;
+  gap: 4px;
+  font-size: 12px;
+  box-shadow: none;
+}
+button.pf-capture[aria-expanded="true"] { background: var(--bg-control-hover); }
+.pf-capture-icon { display: none; }
+
+button.pf-btn {
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-2);
+}
+button.pf-btn:hover { background: var(--bg-hover); color: var(--fg); }
+button.pf-close:hover { background: var(--danger); color: var(--vext-smoke); }
+button.pf-btn:disabled { background: transparent; }
+
+@container pf (max-width: 359px) {
+  .pf-bar { --pf-gap: 6px; padding-left: 10px; }
+  .pf-capture-text, .pf-capture-caret { display: none; }
+  .pf-capture-icon { display: block; }
+  button.pf-capture { width: 28px; padding: 0; margin-right: 4px; }
+  button.pf-btn { width: 26px; }
+}
+
+/* ---------- body (the editor sits on it) ---------- */
+
+.pf-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* An editor bigger than the body: native scroll bars in gutters at the right
+   and bottom (12 px = SCROLLBAR in plugin_frame.rs, which keeps the editor
+   clear of them). Only the axes the shell asks for scroll (.has-x / .has-y);
+   the content's size is the editor's (set from the shell's view). Classic
+   bars, not overlay ones: an overlay bar would be drawn under the editor. */
+.pf-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: none;
+}
+.pf-scroll.has-x, .pf-scroll.has-y { display: block; }
+.pf-scroll.has-x { overflow-x: scroll; }
+.pf-scroll.has-y { overflow-y: scroll; }
+.pf-scroll-content { width: 1px; height: 1px; }
+.pf-scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+.pf-scroll::-webkit-scrollbar-track { background: var(--pf-bar-bg); }
+.pf-scroll::-webkit-scrollbar-corner { background: var(--pf-bar-bg); }
+.pf-scroll::-webkit-scrollbar-thumb {
+  border: 3px solid var(--pf-bar-bg);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--vext-steel) 70%, transparent);
+}
+.pf-scroll::-webkit-scrollbar-thumb:hover { background: var(--vext-steel); }
+.pf-scroll::-webkit-scrollbar-thumb:active { background: var(--accent); }
+.pf-hint {
+  margin: 0;
+  padding: 0 16px;
+  color: var(--pf-body-fg);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------- control bar: IN / OUT knobs, Auto-Balance, Bypass ---------- */
+
+.pf-controls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  height: var(--pf-controls-h);
+  padding: 0 8px 0 6px;
+  background: var(--pf-bar-bg);
+  border-top: 1px solid var(--separator);
+  touch-action: none;
+}
+.pf-knobs, .pf-toggles {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pf-knob {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 4px 1px 1px;
+  border-radius: 6px;
+  color: var(--fg-2);
+  cursor: ns-resize;
+  touch-action: none;
+}
+.pf-knob:hover { background: var(--bg-hover); color: var(--fg); }
+.pf-knob:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.pf-knob svg { flex: none; width: 22px; height: 22px; }
+.pf-knob-track { fill: none; stroke: var(--separator); stroke-width: 2.4; stroke-linecap: round; }
+.pf-knob-arc { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; }
+.pf-knob-tick { stroke: var(--fg); stroke-width: 1.8; stroke-linecap: round; }
+.pf-knob-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  min-width: 32px;
+}
+.pf-knob-label { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; color: var(--fg-3); }
+.pf-knob-value { font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+button.pf-toggle {
+  height: 24px;
+  padding: 0 9px;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.pf-short { display: none; }
+.pf-auto-db { font-weight: 400; font-variant-numeric: tabular-nums; }
+.pf-auto-db:empty { display: none; }
+button.pf-auto[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--vext-black);
+  border-color: var(--accent);
+}
+/* Bypassed: the strongest contrast the theme has, unlike Auto's taupe, so the
+   two read apart even as single letters. */
+button.pf-bypass[aria-pressed="true"] {
+  background: var(--fg);
+  color: var(--pf-bar-bg);
+  border-color: var(--fg);
+}
+button.pf-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* No host state yet (the plugin is still opening, or it closed): shown, inert. */
+.pf-controls.is-idle .pf-knob { opacity: 0.45; cursor: default; }
+.pf-controls.is-idle .pf-knob:hover { background: transparent; }
+
+@container pf (max-width: 319px) {
+  .pf-controls { gap: 6px; padding: 0 6px 0 4px; }
+  .pf-knobs, .pf-toggles { gap: 4px; }
+  .pf-knob { gap: 2px; padding: 1px 3px 1px 1px; }
+  .pf-knob svg { width: 20px; height: 20px; }
+  /* One line: the label, or the value while it's being looked at or changed. */
+  .pf-knob-text { min-width: 30px; }
+  .pf-knob-label { font-size: 10px; }
+  .pf-knob-value { display: none; font-size: 10px; }
+  .pf-knob:is(:hover, :focus-visible, .is-active) .pf-knob-label { display: none; }
+  .pf-knob:is(:hover, :focus-visible, .is-active) .pf-knob-value { display: inline; }
+  .pf-controls.is-idle .pf-knob .pf-knob-label { display: inline; }
+  .pf-controls.is-idle .pf-knob .pf-knob-value { display: none; }
+
+  .pf-long, .pf-auto-db { display: none; }
+  .pf-short { display: inline; }
+  button.pf-toggle { width: 26px; padding: 0; font-size: 12px; }
+}
+
+/* ---------- minimized: the bars only ---------- */
+
+body[data-mode="minimize"] .pf-body { display: none; }
+body[data-mode="minimize"] .pf-controls { border-top: 0; }

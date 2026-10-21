@@ -1,0 +1,212 @@
+/* The Check & fix tab of FL Studio Sync (js/flsync-check.js). Palette tokens only. */
+
+.flc { display: flex; flex-direction: column; }
+
+/* Toolbar: stays at the top while the page scrolls. */
+.flc-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0 10px;
+  background: var(--bg-content);
+  border-bottom: 1px solid var(--separator);
+}
+.flc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.flc-chip {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--separator-strong);
+  border-radius: 999px;
+  background: var(--bg-control);
+  box-shadow: none;
+  color: var(--fg-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+.flc-chip .flc-n { margin-left: 3px; color: var(--fg-3); font-variant-numeric: tabular-nums; }
+.flc-chip[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: var(--accent-fg); }
+.flc-chip[aria-pressed="true"] .flc-n { color: var(--accent-fg); opacity: 0.75; }
+
+.flc-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.flc-search { width: 300px; max-width: 100%; }
+.flc-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+.flc-seg button {
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+.flc-seg button:not([aria-pressed="true"]):hover { background: var(--bg-hover); color: var(--fg); }
+.flc-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+
+.flc-summary { margin: 10px 0 6px; color: var(--fg-3); font-size: 12px; }
+.flc-hint { margin: 0 0 8px; }
+
+/* The list: no inner scroll; the page scrolls. */
+.flc-list {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-m);
+  background: var(--bg-control);
+  box-shadow: 0 0 0 1px var(--separator), var(--shadow-1);
+  overflow: hidden;
+}
+.flc-state { padding: 40px 20px; text-align: center; color: var(--fg-3); }
+.flc-state button { margin-left: 6px; }
+
+.flc-row {
+  display: grid;
+  grid-template-columns: 24px 120px minmax(0, 1fr) minmax(0, 1.3fr) auto;
+  grid-template-areas: "check thumb fl info actions";
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--separator);
+}
+.flc-row:last-child { border-bottom: none; }
+.flc-row:hover { background: var(--bg-hover); }
+.flc-row.has-issues { box-shadow: inset 2px 0 0 var(--warn); }
+
+.flc-check { grid-area: check; display: flex; align-items: center; }
+.flc-thumb {
+  grid-area: thumb;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+.flc-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.flc-size {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-1);
+  color: var(--fg-2);
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.flc-none { color: var(--fg-3); font-size: 12px; }
+
+.flc-fl { grid-area: fl; min-width: 0; }
+.flc-fl strong { display: block; font-weight: 500; color: var(--fg); overflow-wrap: anywhere; }
+.flc-path { display: block; margin-top: 2px; color: var(--fg-3); font-size: 12px; overflow-wrap: anywhere; }
+.flc-sub { color: var(--fg-3); font-size: 12px; }
+
+.flc-info {
+  grid-area: info;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+  font-size: 13px;
+}
+.flc-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 4px; vertical-align: middle; }
+.flc-issue { display: block; color: var(--warn); font-size: 12px; overflow-wrap: anywhere; }
+
+.flc-actions { grid-area: actions; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.flc-btn { height: 24px; padding: 0 9px; font-size: 12px; }
+/* Remove: quiet until hovered, then clearly a removal. */
+.flc-btn.danger { color: var(--danger); }
+.flc-btn.danger:hover:not(:disabled) { background: var(--danger); color: var(--accent-fg); }
+
+/* The plain rows of the views: the same grid, without the thumbnail and the checkbox. */
+.flc-row.flc-plain {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
+  grid-template-areas: "fl info actions";
+}
+
+/* Bulk bar: stays at the bottom while the list is long. */
+.flc-bulk {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-m);
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-2), 0 0 0 0.5px var(--separator-strong);
+}
+.flc-bulk[hidden] { display: none; }
+.flc-bulk-count { font-weight: 500; }
+.flc-bulk-note { color: var(--fg-3); font-size: 12px; }
+.flc-spacer { flex: 1 1 auto; }
+
+/* Narrower windows: two lines per row. The thumbnail and the checkbox sit beside both lines. */
+@media (max-width: 1000px) {
+  .flc-row {
+    grid-template-columns: 24px 120px minmax(0, 1fr) auto;
+    grid-template-areas: "check thumb fl actions" "check thumb info info";
+  }
+  .flc-row.flc-plain {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "fl actions" "info info";
+  }
+}
+@media (max-width: 760px) {
+  .flc-search { width: 100%; }
+  .flc-info { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Link dialog (its own modal, in body). */
+.flc-link { max-width: min(640px, calc(100vw - 48px)); }
+.flc-link-h { margin: 16px 0 6px; font-size: 13px; font-weight: 600; color: var(--fg-2); }
+.flc-link-now { margin: 0 0 4px; font-size: 13px; color: var(--fg-2); }
+.flc-link-search { width: 100%; margin-bottom: 8px; }
+.flc-link .card-list { margin-bottom: 0; }
+.flc-link .empty-state { padding: 18px 16px; font-size: 13px; }
+.flc-pick .info { min-width: 0; }
+.flc-score {
+  display: inline-block;
+  width: 72px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+}
+.flc-score > span { display: block; height: 100%; background: var(--accent); }
+.flc-link-pic {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--fg-2);
+}
+.flc-link-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* Not filed: the Add all bar above the rows. */
+.flc-viewbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 10px; }
+.flc-viewbar[hidden] { display: none; }
+
+/* The link dialog's "Include ignored plugins". */
+.flc-link-inc { display: flex; align-items: center; gap: 6px; margin: 8px 0 2px; font-size: 13px; }

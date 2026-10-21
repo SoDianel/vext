@@ -1,0 +1,48 @@
+[package]
+name = "vext"
+version = "1.0.0"
+description = "Inventory, deduplicate and organize your audio plugins"
+authors = ["Dianel Records"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/SoDianel/vext"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "vext_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["unstable"] }
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+# One VEXT at a time: a second launch focuses the open window (lib.rs run()).
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Per-launch API token (see lib.rs: VextConfig).
+getrandom = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+# Same major as tauri/wry/webview2-com, so HWND and the WebView2 interfaces are
+# the very same types they use.
+windows = { version = "0.62", features = ["Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_UI_HiDpi"] }
+# The in-app browser's history state (CanGoBack/CanGoForward, HistoryChanged).
+webview2-com = "0.39"
+
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

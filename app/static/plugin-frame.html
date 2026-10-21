@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<title>Plugin - VEXT</title>
+<script>
+  // Same appearance as the main window (localStorage is shared: same origin),
+  // applied before first paint.
+  (function () {
+    try {
+      var t = localStorage.getItem('pa-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) { /* storage unavailable: follow the system */ }
+  })();
+</script>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/css/plugin-frame.css">
+</head>
+<body>
+<header class="pf-bar" id="pf-bar">
+  <span class="pf-name" id="pf-name">Plugin</span>
+  <span class="pf-note" id="pf-note" role="status" aria-live="polite"></span>
+  <div class="pf-actions">
+    <button type="button" class="pf-capture" id="pf-capture" title="Take a picture of the plugin's window" aria-label="Capture" aria-haspopup="menu">
+      <svg class="pf-capture-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2.5 5.5h2.2l1.1-1.7h4.4l1.1 1.7h2.2v7h-11z"/><circle cx="8" cy="8.8" r="2.2"/></svg>
+      <span class="pf-capture-text">Capture</span>
+      <svg class="pf-capture-caret" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5L8 10l3.5-3.5"/></svg>
+    </button>
+    <button type="button" class="pf-btn" id="pf-min" title="Minimize" aria-label="Minimize"></button>
+    <button type="button" class="pf-btn" id="pf-full" title="Full screen" aria-label="Full screen"></button>
+    <button type="button" class="pf-btn pf-close" id="pf-close" title="Close the plugin" aria-label="Close the plugin">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>
+    </button>
+  </div>
+</header>
+<div class="pf-body">
+  <p class="pf-hint" id="pf-hint">Opening the plugin…</p>
+  <!-- Scroll bars for an editor bigger than the room there is (the shell moves
+       the editor window behind the viewport; the editor covers all but the bars). -->
+  <div class="pf-scroll" id="pf-scroll" aria-label="Plugin window, scrolled"><div class="pf-scroll-content" id="pf-scroll-content"></div></div>
+</div>
+<!-- The control bar, below the editor. Narrow frames (small plugins) get the
+     compact layout: smaller knobs whose value shows on hover / focus / drag,
+     and [A] / [B] for Auto-Balance / Bypass (container query in plugin-frame.css). -->
+<footer class="pf-controls is-idle" id="pf-controls" role="group" aria-label="Plugin controls">
+  <div class="pf-knobs">
+    <div class="pf-knob" id="pf-in" data-key="in_db" data-label="IN" role="slider" tabindex="-1" aria-disabled="true" aria-label="IN: input gain"
+         aria-valuemin="-60" aria-valuemax="12" aria-valuenow="0" title="IN: how loud the audio goes into the plugin. Drag or scroll; double-click for 0 dB">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="pf-knob-track"/><path class="pf-knob-arc"/><line class="pf-knob-tick" x1="12" y1="12" x2="12" y2="4"/></svg>
+      <span class="pf-knob-text" aria-hidden="true"><span class="pf-knob-label">IN</span><span class="pf-knob-value">0.0</span></span>
+    </div>
+    <div class="pf-knob" id="pf-out" data-key="out_db" data-label="OUT" role="slider" tabindex="-1" aria-disabled="true" aria-label="OUT: output gain"
+         aria-valuemin="-60" aria-valuemax="12" aria-valuenow="0" title="OUT: how loud the plugin comes out. Drag or scroll; double-click for 0 dB">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="pf-knob-track"/><path class="pf-knob-arc"/><line class="pf-knob-tick" x1="12" y1="12" x2="12" y2="4"/></svg>
+      <span class="pf-knob-text" aria-hidden="true"><span class="pf-knob-label">OUT</span><span class="pf-knob-value">0.0</span></span>
+    </div>
+  </div>
+  <div class="pf-toggles">
+    <button type="button" class="pf-toggle pf-auto" id="pf-auto" aria-pressed="false" aria-label="Auto-Balance" disabled
+            title="Auto-Balance: keeps what comes out of the plugin about as loud as what goes in, and peaks under -1 dBFS">
+      <span class="pf-long" aria-hidden="true">Auto</span><span class="pf-short" aria-hidden="true">A</span><span class="pf-auto-db" id="pf-auto-db" aria-hidden="true"></span>
+    </button>
+    <button type="button" class="pf-toggle pf-bypass" id="pf-bypass" aria-pressed="false" aria-label="Bypass" disabled
+            title="Bypass: hear the sound without the plugin, to compare">
+      <span class="pf-long" aria-hidden="true">Bypass</span><span class="pf-short" aria-hidden="true">B</span>
+    </button>
+  </div>
+</footer>
+<script src="/static/js/plugin-frame.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+pefile==2023.2.7
+fastapi==0.115.0
+uvicorn==0.32.0
+# WebSocket support for uvicorn (the in-app browser's audio, /api/browser/audio)
+websockets==17.2
+# Plugin hosting / preview (app/plugin_host.py, app/host_worker.py, app/hosting/).
+# pedalboard hosts VST3 (and Waves through their WaveShell VST3); VST2 and CLAP
+# are hosted by app/hosting/vst2.py and clap.py with ctypes (no extra packages);
+# pefile (above) also explains load failures (app/hosting/deps.py).
+# 0.9.26 can't open VST3 bundle folders on Windows: the worker passes the
+# bundle's inner binary instead. Re-test that before upgrading.
+pedalboard==0.9.26
+# sounddevice also ships PortAudio's ASIO build (_sounddevice_data, used with
+# SD_ENABLE_ASIO, see app/audio_setup.py). MIDI input is Windows' WinMM through
+# ctypes (app/hosting/midi.py): no python-rtmidi / mido needed.
+sounddevice==0.5.6
+av==19.0.1
+pillow
+numpy
+# Mozilla's CA bundle for the web-picture downloads (app/pictures.py); bundled into the
+# sidecar by PyInstaller's certifi hook. Without it they fall back to Windows' store.
+certifi==2026.07.22

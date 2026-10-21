@@ -1,0 +1,71 @@
+# Builds VEXT end to end on a tag (or by hand) to prove the release pipeline still works:
+# fetch the Microsoft redistributables, bundle the backend and the 32-bit host with PyInstaller,
+# build the Tauri shell and the installer, check the result.
+#
+# It uploads no artifact: the release files come from build_release.ps1 on the maintainer's PC (with the
+# signing variables, when there is a certificate) and publish_release.ps1.
+#
+# Free on a public repository; on a private one it uses the plan's included minutes (Windows counts 2x).
+name: Build check
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          architecture: x64
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt httpx pytest
+      - name: Run the tests, one file per process
+        shell: pwsh
+        run: |
+          foreach ($t in Get-ChildItem tools -Filter "test_*.py") {
+            Write-Host "==> $($t.Name)"
+            python $t.FullName
+            if ($LASTEXITCODE -ne 0) { throw "$($t.Name) failed" }
+          }
+
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          architecture: x64
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - name: Install the Tauri CLI
+        run: npm ci || npm install
+        working-directory: desktop
+      - name: Build (fetch redistributables, sidecar, 32-bit host, Tauri, checks)
+        shell: pwsh
+        run: .\build_release.ps1
+      - name: Check the notices are inside the portable folder
+        shell: pwsh
+        run: |
+          $v = (Get-Content desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          foreach ($f in "LICENSE","THIRD_PARTY_NOTICES.md","VEXT.exe","vext-backend.exe","host32/vext-host32.exe") {
+            if (-not (Test-Path "release/VEXT-$v-portable/$f")) { throw "missing $f" }
+          }
+          Get-Content release/SHA256SUMS.txt | Select-Object -First 5

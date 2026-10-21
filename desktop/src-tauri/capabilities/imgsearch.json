@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "imgsearch",
+  "description": "The plugin sheet's image browser (webview \"imgsearch\", remote pages such as Google Images): it may only hand a chosen image address to VEXT. No other command, no API token.",
+  "webviews": ["imgsearch"],
+  "remote": {
+    "urls": ["https://*", "http://*"]
+  },
+  "permissions": [
+    "allow-imgsearch-pick"
+  ]
+}

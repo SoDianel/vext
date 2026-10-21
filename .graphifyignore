@@ -1,0 +1,43 @@
+# Graphify scope: source code and docs only (gitignore syntax; .gitignore is also honored)
+
+# Graphify's own output
+graphify-out/
+
+# Tool/agent state
+.claude/
+.freebuff/
+.git/
+
+# Build artifacts, releases, vendored environments
+.venv-native/
+build/
+dist/
+release/
+node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/src-tauri/binaries/
+desktop/src-tauri/redist/
+desktop/src-tauri/webview2/
+
+# Design sources and binary assets (not code or docs)
+sources/
+desktop/src-tauri/icons/
+*.png
+*.jpg
+*.jpeg
+*.ico
+*.icns
+*.svg
+*.vectorcraft
+*.exe
+*.dll
+*.zip
+
+# Lockfiles, license and generated/config noise
+*.lock
+package-lock.json
+SHA256SUMS.txt
+LICENSE
+*.spec
+*.log

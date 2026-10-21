@@ -1,0 +1,10 @@
+# The 32-bit plugin host (app/host_worker.py run by a 32-bit Python, for 32-bit
+# VST2 plugins): installed into .python-x86 by tools/setup_x86_host.ps1 and
+# bundled by vext-host32.spec. A subset of requirements.txt: no pedalboard and
+# no PyAV (neither has a 32-bit Windows build), so this host opens VST2 only and
+# plays VEXT's own float WAVs (host_worker._WavDecoder). Keep the versions in
+# step with requirements.txt.
+pefile==2023.2.7
+sounddevice==0.5.6
+numpy
+pillow

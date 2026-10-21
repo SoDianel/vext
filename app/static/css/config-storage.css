@@ -1,0 +1,66 @@
+/* Configuration › Storage (js/config-storage.js): a total, then the Cache and Backups groups as lists
+   with each item's size and a bar, and an action bar at the bottom. */
+
+.cs { display: flex; flex-direction: column; gap: 16px; }
+.cs-state { color: var(--fg-3); }
+.cs-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; }
+.cs-head h3 { margin: 0 0 4px; }
+.cs-head .hint { margin: 0; max-width: 62ch; }
+.cs-total { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cs-total-num { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--fg); }
+.cs-total-label { color: var(--fg-3); font-size: 12px; }
+
+.cs-group-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
+.cs-group-head h4 { margin: 0; font-size: 13px; }
+.cs-group-head .hint { margin: 0; }
+.cs-group-size { margin-left: 6px; color: var(--fg-3); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.cs-list {
+  border-radius: var(--radius-m);
+  background: var(--bg-content);
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+.cs-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 150px auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--separator);
+}
+.cs-row:last-child { border-bottom: 0; }
+.cs-row.is-empty { opacity: 0.6; }
+.cs-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cs-detail { color: var(--fg-2); font-size: 12px; }
+.cs-where { overflow: hidden; color: var(--fg-3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.cs-size { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 8px; }
+.cs-num { font-weight: 600; font-variant-numeric: tabular-nums; }
+.cs-files { color: var(--fg-3); font-size: 11px; text-align: right; }
+.cs-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--bg-subtle); overflow: hidden; }
+.cs-bar > span { display: block; height: 100%; background: var(--accent); }
+.cs-acts { display: flex; gap: 6px; justify-content: flex-end; }
+.cs-btn { height: 26px; padding: 0 10px; font-size: 12px; }
+.cs-btn.danger { color: var(--danger); }
+.cs-btn.danger:hover:not(:disabled) { background: var(--danger); color: var(--accent-fg); }
+
+.cs-bar-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-m);
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-1), inset 0 0 0 1px var(--separator);
+  color: var(--fg-2);
+  font-size: 12.5px;
+}
+.cs-spacer { flex: 1 1 auto; }
+
+@media (max-width: 760px) {
+  .cs-row { grid-template-columns: 28px minmax(0, 1fr); }
+  .cs-size, .cs-acts { grid-column: 2; }
+  .cs-acts { justify-content: flex-start; }
+}

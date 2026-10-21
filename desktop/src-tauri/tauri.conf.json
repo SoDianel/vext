@@ -1,0 +1,65 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "VEXT",
+  "version": "1.0.0",
+  "identifier": "com.vext.app",
+  "build": {
+    "frontendDist": "../dist-mirror",
+    "beforeDevCommand": "node copy-frontend.js",
+    "beforeBuildCommand": "node copy-frontend.js"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "VEXT",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 760,
+        "minHeight": 520
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "publisher": "Dianel Records",
+    "category": "Music",
+    "shortDescription": "Inventory, deduplicate and organize your audio plugins",
+    "longDescription": "VEXT catalogs every VST2, VST3, CLAP, AAX and Waves plugin on this PC, finds duplicates across formats and install locations, and organizes them, with every destructive action previewed and confirmed first.",
+    "copyright": "Copyright (c) 2026 Carlos Daniel Villalba Rada (Dianel Records). GPL-3.0-or-later",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/vext-backend"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "skip"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "installerHooks": "installer/installer-hooks.nsh"
+      }
+    },
+    "resources": {
+      "redist/": "redist/",
+      "host32/": "host32/",
+      "../../LICENSE": "LICENSE",
+      "../../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"
+    }
+  }
+}

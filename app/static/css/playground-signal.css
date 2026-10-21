@@ -1,0 +1,260 @@
+/* The Playground's Signal tab (js/playground-signal.js): the designer above the waveform. The panel is a
+   column: the designer scrolls inside itself, the waveform keeps about 38 % of the height below it.
+   Only palette tokens are used, so light and dark follow the theme without their own blocks. */
+
+.pg-panel-signal { display: flex; flex-direction: column; }
+.pg-signal {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  container-type: inline-size;   /* the layout below follows the designer's own width */
+}
+.pg-signal-wave {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  height: 38%;
+  min-height: 170px;
+}
+.pg-signal [hidden] { display: none !important; }
+
+/* ---------- the top bar ---------- */
+
+.pgs-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--separator);
+  background: var(--bg-subtle);
+}
+.pgs-spacer { flex: 1 1 0; min-width: 0; }
+.pgs-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pgs-label {
+  color: var(--fg-3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.pg-signal .pgs-select {
+  width: auto;
+  max-width: 100%;
+  height: 26px;
+  padding: 0 22px 0 7px;
+  font-size: 12px;
+}
+.pg-signal .pgs-toggle { font-size: 12px; }
+
+/* Presets: a menu under its button. */
+.pgs-presets-wrap { position: relative; flex: none; }
+.pg-signal button.pgs-presets {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+.pgs-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(320px, 80vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 5px;
+  border-radius: var(--radius-m);
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-2), 0 0 0 0.5px var(--separator-strong);
+}
+.pgs-menu-group {
+  padding: 8px 10px 2px;
+  color: var(--fg-3);
+  font-size: 11px;
+}
+.pg-signal button.pgs-menu-item {
+  justify-content: flex-start;
+  height: auto;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  color: var(--fg);
+  font-size: 13px;
+  text-align: left;
+  white-space: normal;
+}
+.pg-signal button.pgs-menu-item:hover,
+.pg-signal button.pgs-menu-item:focus-visible { background: var(--bg-hover); }
+
+/* Render, and Live (a switch). */
+.pg-signal button.pgs-render { height: 26px; padding: 0 12px; font-size: 12.5px; }
+
+/* The info line from the last render (or what it waits for). */
+.pgs-info {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--separator);
+  color: var(--fg-3);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.pgs-info.is-error { color: var(--danger); }
+.pgs-clip { color: var(--danger); font-weight: 600; }
+
+/* ---------- the body: the sources (left), the scope (right) ---------- */
+
+.pgs-body {
+  display: grid;
+  flex: none;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 38%);
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+}
+.pgs-body.no-scope { grid-template-columns: minmax(0, 1fr); }
+.pgs-body.no-scope .pgs-scope { display: none; }
+.pgs-sources { min-width: 0; }
+.pgs-scope { min-width: 0; }
+/* A narrow designer (the Playground's plugins on the side, or a small window): scope under the sources. */
+@container (max-width: 760px) {
+  .pgs-body { grid-template-columns: minmax(0, 1fr); }
+}
+
+.pgs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+.pgs-section {
+  color: var(--fg-3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.pg-signal button.pgs-add {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+.pgs-empty {
+  margin: 0 0 10px;
+  color: var(--fg-3);
+  font-size: 12px;
+}
+.pgs-osc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 10px;
+}
+.pgs-fx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* ---------- cards ---------- */
+
+.pgs-card {
+  min-width: 0;
+  padding: 8px 10px 10px;
+  border-radius: var(--radius-m);
+  background: var(--bg-content);
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+.pgs-card-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-height: 24px;
+}
+.pgs-card-title {
+  color: var(--fg);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pgs-card-body { min-width: 0; }
+/* A card that is Off is dimmed but stays editable (its header, the On switch, is not dimmed). */
+.pgs-card.is-off > .pgs-card-body { opacity: 0.55; }
+.pg-signal button.pgs-x {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  color: var(--fg-3);
+  font-size: 15px;
+  line-height: 1;
+}
+.pg-signal button.pgs-x:hover,
+.pg-signal button.pgs-x:focus-visible { background: var(--bg-hover); color: var(--fg); }
+
+.pgs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+.pgs-knobs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px 4px;
+  margin-top: 8px;
+}
+.pgs-row > .pgs-knobs { margin-top: 0; }
+.pg-signal .pgs-seg {
+  flex-wrap: wrap;
+  margin: 0;
+}
+.pg-signal .pgs-seg button {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+.pg-signal .pgs-seg button:disabled { opacity: 0.45; }
+
+/* Modulation: its own button, then the rows (open when something in it is on). */
+.pg-signal button.pgs-mod-btn {
+  height: 24px;
+  margin-top: 10px;
+  padding: 0 8px;
+  background: none;
+  box-shadow: none;
+  color: var(--fg-2);
+  font-size: 12px;
+}
+.pg-signal button.pgs-mod-btn::after { content: ' ▾'; color: var(--fg-3); }
+.pg-signal button.pgs-mod-btn[aria-expanded="true"]::after { content: ' ▴'; }
+.pgs-mod {
+  margin-top: 4px;
+  padding-top: 2px;
+  border-top: 1px solid var(--separator);
+}
+.pgs-mod .pgs-row { margin-top: 10px; }
+
+/* The confirmation about a recording (the app's modal, with a tick). */
+.pgs-ask { max-width: 360px; }
+.pgs-ask-again { margin: 2px 0 14px; font-size: 12px; }

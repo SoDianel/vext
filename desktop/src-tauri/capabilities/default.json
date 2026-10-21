@@ -1,0 +1,22 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main page (webview \"main\" only: the window \"main\" also holds the Playground's browser, which must get no IPC).",
+  "webviews": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "opener:allow-reveal-item-in-dir",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "allow-relaunch-elevated",
+    "allow-browser-place",
+    "allow-browser-go",
+    "allow-browser-state",
+    "allow-imgsearch-place",
+    "allow-imgsearch-go",
+    "allow-imgsearch-close",
+    "allow-plugin-frame-open",
+    "allow-plugin-frame-close"
+  ]
+}
