@@ -51,6 +51,11 @@ the clean-PC test (`tools\sandbox\run.ps1`, Windows Sandbox); maintainers run th
 
 ## Pull requests
 
-One topic per PR, based on `main`. Fill in the template. Don't include build outputs (`release\`, `dist\`,
+Work on a topic branch based on `main`, with one topic per PR. GitHub **Rebase and merge** is the only
+allowed merge method: no merge commits or squash merges. Rebase your topic branch onto `origin/main` when
+needed; never amend or force-push `main`. CI runs on branch pushes and PRs; each `main` push builds and
+retains the Windows downloads for 90 days.
+
+Fill in the template. Don't include build outputs (`release\`, `dist\`,
 `desktop\src-tauri\target\`) or personal data (paths with your username, your plugin lists). Screenshots must
 come from sample data, not your own library.

@@ -1,0 +1,62 @@
+name: Draft release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit, branch or tag to build into a draft"
+        default: main
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: windows-latest
+    outputs:
+      commit: ${{ steps.validate.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0
+      - name: Validate the release source
+        id: validate
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          $version = (Get-Content desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if (-not $env:TAG) { $env:TAG = "v$version" }
+          ./tools/check_version.ps1 -Tag $env:TAG
+          git merge-base --is-ancestor HEAD origin/main
+          if ($LASTEXITCODE -ne 0) { throw "Release source must already be on main" }
+          "commit=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+
+  windows:
+    needs: source
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ needs.source.outputs.commit }}
+
+  draft:
+    needs: windows
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.windows.outputs.commit }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.windows.outputs.artifact }}
+          path: packaged/release
+      - name: Create a draft from the retained build
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./tools/publish_release.ps1 -ReleaseDir packaged/release -Target '${{ needs.windows.outputs.commit }}'

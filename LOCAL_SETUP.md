@@ -234,12 +234,44 @@ the build. Needs `signtool.exe` (Windows SDK) on PATH or in `VEXT_SIGNTOOL`.
 
 Optional: `VEXT_SIGN_TIMESTAMP` (timestamp server URL). Details in `tools\sign_file.ps1`.
 
-## Releasing
+## Branches, builds and releases
 
-1. Bump the version in `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/Cargo.toml` and
-   `desktop/package.json` (the build stops if they differ) and add the section to `CHANGELOG.md`.
-2. `python tools\gen_notices.py` (refreshes the Rust crate table in `THIRD_PARTY_NOTICES.md`; check the
-   Python table by hand if `requirements*.txt` changed).
-3. `.\tools\fetch_redist.ps1 -Refresh`, then `.\build_release.ps1`, then `.\tools\sandbox\run.ps1` (PASS needed).
-4. `.\tools\publish_release.ps1`: zips the portable folder and creates a **draft** GitHub Release with the
-   setup.exe, the zip, the checksums, LICENSE and notices. Publishing the draft is a manual step.
+Work on a topic branch, commit normally, and open a PR against `main`. GitHub **Rebase and merge** is the
+only allowed merge method; merge commits and squash merges are disabled. `main` requires linear history,
+a passing `checks` job and a PR. Never amend or force-push `main`. To update a PR, rebase the topic branch
+onto `origin/main` and use `--force-with-lease` only for that topic branch.
+
+CI (`.github/workflows/ci.yml`) runs on every branch push and PR. Every push to `main` runs the **Windows
+build** workflow (`build.yml`): checks, runtime downloads, sidecar and 32-bit host bundles, Tauri and NSIS,
+then portable ZIP packaging and checksum verification. Each push keeps its own build; later pushes do not
+cancel it. The run retains a `VEXT-windows-<commit>-<run>-<attempt>` artifact for 90 days containing:
+
+- `VEXT-<version>-setup.exe` and `VEXT-<version>-portable.zip`;
+- `SHA256SUMS.txt`, `BUILD_PROVENANCE.json` (source commit, clean/dirty state, build time and run URL);
+- `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `RELEASE_NOTES.md`.
+
+CI builds are unsigned. The local build still supports the signing variables described above. Actions
+artifacts expire; assets attached to a GitHub Release remain until explicitly removed.
+
+1. Add user-visible changes under `[Unreleased]` in `CHANGELOG.md` on a topic branch.
+2. Run `.\tools\bump_version.ps1 -Version 1.1.0` (`-DryRun` previews changes). It updates the Tauri, npm
+   and Cargo manifests and locks, dates the changelog section and updates comparison links.
+   `.\tools\check_version.ps1` checks all versions; `-Tag v1.1.0` also validates the dated release notes.
+3. Run `python tools\gen_notices.py`; check Python notices by hand if requirements changed. Commit only
+   the intended files, open a PR, wait for checks, then use **Rebase and merge**.
+4. Download the artifact from that exact `main` build. Run the clean-PC Sandbox test against its installer
+   (copy the artifact's files into a separate checkout's `release\` folder and run
+   `.\tools\sandbox\run.ps1`). Keep the installer SHA256 with the PASS result. Do not substitute a local
+   rebuild: its bytes can differ even for the same commit. The Sandbox does not run on GitHub-hosted runners.
+5. Prepare a draft in either of two ways. Push an immutable `v1.1.0` tag on the tested `main` commit or
+   dispatch **Draft release** (`release.yml`, `ref` input); it builds and retains artifacts and creates a
+   draft. Test that workflow's exact installer before publishing. To reuse an already tested retained build,
+   check out its recorded commit and run `.\tools\publish_release.ps1 -ReleaseDir <downloaded-artifact>`.
+   The helper verifies checksums and provenance, keeps an existing portable ZIP unchanged, and creates a
+   **draft** pinned to the recorded commit. `-SkipGitHub` prepares locally. It refuses existing releases.
+6. Review the draft and its exact-asset Sandbox PASS, then publish it manually. Draft assets are private
+   to repository collaborators until publication. Never move or delete a published tag.
+
+For a local release, build from a clean commit on `main` with `.\build_release.ps1`, run the Sandbox test
+against that installer, then use `.\tools\publish_release.ps1`. Old builds without source provenance must
+be rebuilt rather than assigned a guessed commit or validated by an older Sandbox PASS.

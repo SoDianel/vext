@@ -6,7 +6,13 @@ All notable changes to VEXT are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.0.0] - Unreleased
+### Changed
+
+- Branch and pull request CI, rebase-only merges and protected linear history on `main`.
+- Every `main` push builds the Windows installer and portable download, retained with checksums and source
+  provenance for 90 days. Release automation prepares drafts for manual publication.
+
+## [1.0.0] - 2026-10-26
 
 First public release. VEXT began as a private tool and is now free software under GPL-3.0-or-later.
 

@@ -95,6 +95,16 @@ rule or a decision is missing here, ask in an issue.
 - `.\tools\publish_release.ps1` zips the portable folder, writes the notes from `CHANGELOG.md` and creates a
   **draft** GitHub Release with the setup.exe, the portable zip, `SHA256SUMS.txt`, LICENSE and notices. The
   maintainer publishes the draft by hand. Releases are free; support is an optional donation.
+- Work on topic branches and open pull requests. GitHub **Rebase and merge** is the only merge method;
+  never use merge commits or squash merges. `main` has linear history: do not amend or force-push it.
+  Rebase a topic branch onto `origin/main` when needed; force-with-lease is only for that topic branch.
+- `tools\bump_version.ps1` updates the manifests, lockfiles and changelog together;
+  `tools\check_version.ps1` validates them. CI runs on every branch push and PR. Every `main` push runs
+  `.github/workflows/build.yml`, retaining the installer, portable ZIP, checksums and `BUILD_PROVENANCE.json`
+  for 90 days. Builds are not cancelled by later pushes. Tag `vX.Y.Z` or dispatch `release.yml` to prepare
+  a draft from a commit already on `main`. Publishing remains a separate manual step.
+- Release assets must come from a clean, recorded source commit and pass checksum verification. A Sandbox
+  PASS applies only to the exact installer tested; test the downloaded CI installer, not a local rebuild.
 - Rebuild the sidecar after any change under `app/` or `sidecar_main.py`; the frontend is re-mirrored on
   every `tauri dev` / `tauri build`.
 - `THIRD_PARTY_NOTICES.md` lists what the builds bundle; refresh it with `python tools/gen_notices.py` and by
