@@ -52,6 +52,9 @@ if (Test-Path $wv) {
 
 # 1. Install, silently, as a user would (the installer asks for permission once if runtimes are missing).
 $setup = Get-ChildItem "C:\release" -Filter "VEXT-*-setup.exe" | Select-Object -First 1
+$result.installer = $setup.Name
+$result.installer_sha256 = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash
+$result.tested_at_utc = [DateTime]::UtcNow.ToString("o")
 Say "Installing $($setup.Name)"
 $p = Start-Process -FilePath $setup.FullName -ArgumentList "/S" -Wait -PassThru
 $result.setup_exit = $p.ExitCode

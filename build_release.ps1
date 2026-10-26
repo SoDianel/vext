@@ -42,13 +42,11 @@ function Invoke-Native([string]$label, [string]$command) {
 
 $version = (Get-Content (Join-Path $tauriDir "tauri.conf.json") -Raw | ConvertFrom-Json).version
 
-# One version everywhere: tauri.conf.json is the source (app/config.py reads it), and the Cargo and
-# npm manifests must agree with it, or the installer and the app would show different numbers.
-$cargoVersion = (Select-String -Path (Join-Path $tauriDir "Cargo.toml") -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
-$npmVersion = (Get-Content (Join-Path $desktop "package.json") -Raw | ConvertFrom-Json).version
-if ($cargoVersion -ne $version -or $npmVersion -ne $version) {
-    throw "Version mismatch: tauri.conf.json $version, Cargo.toml $cargoVersion, package.json $npmVersion. Make them equal and rerun."
-}
+& (Join-Path $root "tools\check_version.ps1")
+# Capture this before icon generation or dependency tools can change the checkout.
+$sourceCommit = git -C $root rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw "Build from a git checkout so the source commit can be recorded" }
+$sourceDirty = [bool](git -C $root status --porcelain --untracked-files=normal)
 
 # Optional code signing: runs only when VEXT_SIGN_PFX or VEXT_SIGN_AZURE_DLIB is set (tools\sign_file.ps1).
 $signing = [bool]($env:VEXT_SIGN_PFX -or $env:VEXT_SIGN_AZURE_DLIB)
@@ -113,6 +111,9 @@ if (-not $nsis -or -not (Test-Path $exe)) {
 # 3) Collect into release\ --------------------------------------------------
 # Emptied, not deleted: Windows Sandbox (tools\sandbox) maps this folder and can hold it.
 New-Item -ItemType Directory -Force -Path $release | Out-Null
+# Check the absolute destination before recursively clearing build output.
+$release = [IO.Path]::GetFullPath($release)
+if ($release -ne [IO.Path]::GetFullPath((Join-Path $root "release"))) { throw "Unexpected release directory" }
 Get-ChildItem $release -Force | Remove-Item -Recurse -Force
 
 $setupName = "VEXT-$version-setup.exe"
@@ -129,6 +130,8 @@ Copy-Item (Join-Path $tauriDir "redist") (Join-Path $portable "redist") -Recurse
 Copy-Item (Join-Path $tauriDir "host32") (Join-Path $portable "host32") -Recurse
 Copy-Item (Join-Path $root "LICENSE") $portable
 Copy-Item (Join-Path $root "THIRD_PARTY_NOTICES.md") $portable
+Copy-Item (Join-Path $root "LICENSE") $release
+Copy-Item (Join-Path $root "THIRD_PARTY_NOTICES.md") $release
 @"
 VEXT $version (portable)
 
@@ -162,6 +165,15 @@ if ($signing) {
         if ($sig.Status -ne "Valid") { throw "Signature check failed for ${f}: $($sig.Status)" }
     }
 }
+
+[ordered]@{
+    schema_version = 1
+    version = $version
+    commit = $sourceCommit
+    source_dirty = $sourceDirty
+    built_at_utc = [DateTime]::UtcNow.ToString("o")
+    workflow_run = if ($env:GITHUB_ACTIONS) { "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID" } else { $null }
+} | ConvertTo-Json | Set-Content (Join-Path $release "BUILD_PROVENANCE.json") -Encoding utf8
 
 $sums = Get-ChildItem $release -Recurse -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
     $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash

@@ -11,6 +11,13 @@ and the clean-PC test. Background: AGENTS.md, "Self-contained install".
 | `build_host32.ps1` | Builds the 32-bit plugin host (`vext-host32.spec`, one folder) with that Python, checks it with `check_bundle.py`, and copies it to `desktop\src-tauri\host32\` (an installer resource, git-ignored). | `.\tools\build_host32.ps1` |
 | `sandbox\` | The clean-PC test: installs `release\VEXT-*-setup.exe` in Windows Sandbox (fresh Windows, no runtimes, no internet), checks the runtimes, the app's own runtime check, that a second install has nothing to do, and that Xfer OTT loads. See `sandbox\README.md`. | `.\tools\sandbox\run.ps1` → `tools\sandbox\results\result.json` (PASS / FAIL) |
 
+`check_version.ps1` validates Tauri, npm and Cargo manifests and locks; `-Tag vX.Y.Z` also checks the
+release notes. `bump_version.ps1 -Version X.Y.Z` updates them together (`-DryRun` previews).
+`publish_release.ps1` verifies checksums and clean source provenance, packages the portable ZIP once, and
+creates a draft pinned to the build commit. `-ReleaseDir` accepts a downloaded CI artifact; `-SkipGitHub`
+prepares locally. It never replaces an existing release. See LOCAL_SETUP.md for the branch/rebase policy,
+90-day build artifacts, and testing the exact downloaded installer before publication.
+
 Related, outside this folder:
 
 - `desktop\src-tauri\installer\installer-hooks.nsh` — the setup's post-install step:

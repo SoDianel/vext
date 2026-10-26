@@ -1,49 +1,48 @@
-# Builds VEXT end to end on a tag (or by hand) to prove the release pipeline still works:
-# fetch the Microsoft redistributables, bundle the backend and the 32-bit host with PyInstaller,
-# build the Tauri shell and the installer, check the result.
-#
-# It uploads no artifact: the release files come from build_release.ps1 on the maintainer's PC (with the
-# signing variables, when there is a certificate) and publish_release.ps1.
-#
-# Free on a public repository; on a private one it uses the plan's included minutes (Windows counts 2x).
-name: Build check
+name: Windows build
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ""
+    outputs:
+      commit:
+        value: ${{ jobs.build.outputs.commit }}
+      artifact:
+        value: ${{ jobs.build.outputs.artifact }}
 
 permissions:
   contents: read
 
+# Do not cancel or coalesce main builds: every push must retain its own installer.
 jobs:
-  tests:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-          architecture: x64
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt httpx pytest
-      - name: Run the tests, one file per process
-        shell: pwsh
-        run: |
-          foreach ($t in Get-ChildItem tools -Filter "test_*.py") {
-            Write-Host "==> $($t.Name)"
-            python $t.FullName
-            if ($LASTEXITCODE -ne 0) { throw "$($t.Name) failed" }
-          }
+  checks:
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.ref || github.sha }}
 
   build:
+    needs: checks
     runs-on: windows-latest
     timeout-minutes: 90
-    needs: tests
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+      artifact: ${{ steps.source.outputs.artifact }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: source
+        name: Identify the source snapshot
+        shell: pwsh
+        run: |
+          $commit = git rev-parse HEAD
+          "commit=$commit" >> $env:GITHUB_OUTPUT
+          "artifact=VEXT-windows-$commit-${{ github.run_id }}-${{ github.run_attempt }}" >> $env:GITHUB_OUTPUT
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
@@ -51,21 +50,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop/src-tauri
       - name: Install the Tauri CLI
-        run: npm ci || npm install
         working-directory: desktop
-      - name: Build (fetch redistributables, sidecar, 32-bit host, Tauri, checks)
+        run: npm ci
+      - name: Build installer and portable folder
         shell: pwsh
-        run: .\build_release.ps1
-      - name: Check the notices are inside the portable folder
+        run: ./build_release.ps1
+      - name: Verify checksums and package the portable download
         shell: pwsh
-        run: |
-          $v = (Get-Content desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          foreach ($f in "LICENSE","THIRD_PARTY_NOTICES.md","VEXT.exe","vext-backend.exe","host32/vext-host32.exe") {
-            if (-not (Test-Path "release/VEXT-$v-portable/$f")) { throw "missing $f" }
-          }
-          Get-Content release/SHA256SUMS.txt | Select-Object -First 5
+        run: ./tools/publish_release.ps1 -SkipGitHub
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.source.outputs.artifact }}
+          path: |
+            release/*-setup.exe
+            release/*-portable.zip
+            release/SHA256SUMS.txt
+            release/BUILD_PROVENANCE.json
+            release/RELEASE_NOTES.md
+            release/LICENSE
+            release/THIRD_PARTY_NOTICES.md
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0

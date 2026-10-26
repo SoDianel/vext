@@ -46,6 +46,8 @@ You can also build it yourself, see [Build from source](#build-from-source).
 VEXT is made and maintained by one person. If it saves you time, you can support its development with a
 donation: [Ko-fi](https://ko-fi.com/sodianel). It is optional; nothing is locked behind it.
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/S0K8298CW1)
+
 ## Privacy
 
 Everything stays on your PC. VEXT has **no telemetry and no accounts**, and does not upload your plugin list.

@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: checks
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          architecture: x64
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check all manifest and lockfile versions
+        shell: pwsh
+        run: ./tools/check_version.ps1
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt httpx pytest
+      - name: Tests, one file per process
+        shell: pwsh
+        run: |
+          foreach ($test in Get-ChildItem tools -Filter "test_*.py" | Sort-Object Name) {
+            Write-Host "==> $($test.Name)"
+            $env:VEXT_ROOT = Join-Path $env:RUNNER_TEMP "vext-ci-$($test.BaseName)"
+            $env:LOCALAPPDATA = Join-Path $env:VEXT_ROOT "local"
+            python -m pytest $test.FullName -q
+            if ($LASTEXITCODE -eq 5) { python $test.FullName }
+            if ($LASTEXITCODE -ne 0) { throw "$($test.Name) failed" }
+          }
+      - name: Check the third-party notices
+        shell: pwsh
+        run: |
+          python tools/gen_notices.py
+          if ($LASTEXITCODE -ne 0) { throw "Notice generation failed" }
+          git diff --exit-code THIRD_PARTY_NOTICES.md
+          if ($LASTEXITCODE -ne 0) { throw "Regenerate THIRD_PARTY_NOTICES.md" }
