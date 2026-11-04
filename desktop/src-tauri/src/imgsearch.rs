@@ -22,11 +22,13 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::webview::{DownloadEvent, NewWindowResponse};
-use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Url, WebviewBuilder, WebviewUrl};
+use tauri::{
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Url, WebviewBuilder, WebviewUrl,
+};
 use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2;
 use webview2_com::{
-    take_pwstr, HistoryChangedEventHandler, NavigationCompletedEventHandler, NavigationStartingEventHandler,
-    SourceChangedEventHandler,
+    take_pwstr, HistoryChangedEventHandler, NavigationCompletedEventHandler,
+    NavigationStartingEventHandler, SourceChangedEventHandler,
 };
 use windows::core::{BOOL, PWSTR};
 
@@ -67,7 +69,9 @@ pub struct ImgSearch {
 // local), not file: or other schemes that hand off to another app.
 fn allowed_navigation(url: &Url) -> bool {
     match url.scheme() {
-        "http" | "https" => !url.host_str().is_some_and(|h| h.to_ascii_lowercase().ends_with(".localhost")),
+        "http" | "https" => !url
+            .host_str()
+            .is_some_and(|h| h.to_ascii_lowercase().ends_with(".localhost")),
         "about" => true,
         _ => false,
     }
@@ -80,7 +84,9 @@ fn search_url(text: &str) -> Result<Url, String> {
     if text.is_empty() {
         return Err("type what to search for".into());
     }
-    if !text.contains(char::is_whitespace) && (text.starts_with("https://") || text.starts_with("http://")) {
+    if !text.contains(char::is_whitespace)
+        && (text.starts_with("https://") || text.starts_with("http://"))
+    {
         if let Ok(url) = Url::parse(text) {
             if allowed_navigation(&url) {
                 return Ok(url);
@@ -126,7 +132,9 @@ fn update(app: &AppHandle, core: Option<ICoreWebView2>, loading: Option<bool>) {
 // panel changes the address with pushState).
 fn watch(app: AppHandle, webview: &tauri::Webview) -> tauri::Result<()> {
     webview.with_webview(move |platform| unsafe {
-        let Ok(core) = platform.controller().CoreWebView2() else { return };
+        let Ok(core) = platform.controller().CoreWebView2() else {
+            return;
+        };
         let mut token = 0i64;
         let a = app.clone();
         let _ = core.add_NavigationStarting(
@@ -163,7 +171,14 @@ fn watch(app: AppHandle, webview: &tauri::Webview) -> tauri::Result<()> {
     })
 }
 
-fn create(app: &AppHandle, start: Url, x: f64, y: f64, width: f64, height: f64) -> Result<(), String> {
+fn create(
+    app: &AppHandle,
+    start: Url,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
     let window = app.get_window("main").ok_or("main window not found")?;
     *app.state::<ImgSearch>().state.lock().unwrap() = State::default();
     let nav = app.clone();
@@ -190,7 +205,11 @@ fn create(app: &AppHandle, start: Url, x: f64, y: f64, width: f64, height: f64) 
     // Profile: the default WebView2 user data folder of the main window (as the
     // Playground's browser), which persists: Google's consent choice is kept.
     let webview = window
-        .add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
+        .add_child(
+            builder,
+            LogicalPosition::new(x, y),
+            LogicalSize::new(width, height),
+        )
         .map_err(|e| e.to_string())?;
     watch(app.clone(), &webview).map_err(|e| e.to_string())
 }
@@ -217,8 +236,10 @@ pub async fn imgsearch_place(
         return create(&app, start, x, y, width, height);
     };
     if visible {
-        wv.set_position(LogicalPosition::new(x, y)).map_err(|e| e.to_string())?;
-        wv.set_size(LogicalSize::new(width, height)).map_err(|e| e.to_string())?;
+        wv.set_position(LogicalPosition::new(x, y))
+            .map_err(|e| e.to_string())?;
+        wv.set_size(LogicalSize::new(width, height))
+            .map_err(|e| e.to_string())?;
         wv.show().map_err(|e| e.to_string())
     } else {
         wv.hide().map_err(|e| e.to_string())
@@ -226,8 +247,14 @@ pub async fn imgsearch_place(
 }
 
 #[tauri::command]
-pub async fn imgsearch_go(app: AppHandle, action: String, query: Option<String>) -> Result<(), String> {
-    let wv = app.get_webview(LABEL).ok_or("the image browser isn't open")?;
+pub async fn imgsearch_go(
+    app: AppHandle,
+    action: String,
+    query: Option<String>,
+) -> Result<(), String> {
+    let wv = app
+        .get_webview(LABEL)
+        .ok_or("the image browser isn't open")?;
     let native = |f: fn(&ICoreWebView2)| {
         wv.with_webview(move |platform| unsafe {
             if let Ok(core) = platform.controller().CoreWebView2() {
@@ -244,7 +271,9 @@ pub async fn imgsearch_go(app: AppHandle, action: String, query: Option<String>)
             let _ = core.GoForward();
         }),
         "reload" => wv.reload().map_err(|e| e.to_string()),
-        "search" => wv.navigate(search_url(query.as_deref().unwrap_or(""))?).map_err(|e| e.to_string()),
+        "search" => wv
+            .navigate(search_url(query.as_deref().unwrap_or(""))?)
+            .map_err(|e| e.to_string()),
         _ => Err(format!("unknown action: {action}")),
     }
 }
@@ -261,7 +290,10 @@ pub async fn imgsearch_close(app: AppHandle) -> Result<(), String> {
             if app.get_webview(LABEL).is_none() {
                 break;
             }
-            let _ = tauri::async_runtime::spawn_blocking(|| std::thread::sleep(Duration::from_millis(20))).await;
+            let _ = tauri::async_runtime::spawn_blocking(|| {
+                std::thread::sleep(Duration::from_millis(20))
+            })
+            .await;
         }
     }
     *me.state.lock().unwrap() = State::default();
@@ -297,7 +329,10 @@ pub async fn imgsearch_pick(
         }
         *last = Some(Instant::now());
     }
-    let lower = image_url.get(..16).unwrap_or(&image_url).to_ascii_lowercase();
+    let lower = image_url
+        .get(..16)
+        .unwrap_or(&image_url)
+        .to_ascii_lowercase();
     let image_url = if lower.starts_with("data:image/") {
         if image_url.len() > MAX_DATA_URL {
             return Err("that image is too large".into());
@@ -307,8 +342,16 @@ pub async fn imgsearch_pick(
         web_url(&image_url).ok_or("not a web image address")?
     };
     let page_url = page_url.as_deref().and_then(web_url);
-    app.emit_to("main", PICK_EVENT, Pick { image_url, page_url, thumbnail: thumbnail.unwrap_or(false) })
-        .map_err(|e| e.to_string())
+    app.emit_to(
+        "main",
+        PICK_EVENT,
+        Pick {
+            image_url,
+            page_url,
+            thumbnail: thumbnail.unwrap_or(false),
+        },
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -321,8 +364,13 @@ mod tests {
         assert_eq!(u.host_str(), Some("www.google.com"));
         assert!(u.as_str().contains("udm=2"));
         assert!(u.as_str().contains("q=FabFilter+Pro-Q+3+plugin"));
-        assert_eq!(search_url("https://example.com/x.png").unwrap().as_str(), "https://example.com/x.png");
-        assert!(search_url("http://tauri.localhost/").unwrap().host_str() == Some("www.google.com"));
+        assert_eq!(
+            search_url("https://example.com/x.png").unwrap().as_str(),
+            "https://example.com/x.png"
+        );
+        assert!(
+            search_url("http://tauri.localhost/").unwrap().host_str() == Some("www.google.com")
+        );
         assert!(search_url("   ").is_err());
     }
 }

@@ -1,4 +1,7 @@
 mod browser;
+mod fl_bubble;
+mod fl_drag;
+mod fl_focus;
 mod imgsearch;
 mod plugin_frame;
 
@@ -80,7 +83,9 @@ fn random_token() -> String {
 }
 
 fn dev_backend() -> bool {
-    std::env::var("VEXT_DEV_BACKEND").map(|v| v == "1").unwrap_or(false)
+    std::env::var("VEXT_DEV_BACKEND")
+        .map(|v| v == "1")
+        .unwrap_or(false)
 }
 
 // ---------- backend sidecar ----------
@@ -173,8 +178,12 @@ fn spawn_backend(app: &tauri::App) {
         use tauri_plugin_shell::process::CommandEvent;
         while let Some(event) = rx.recv().await {
             match event {
-                CommandEvent::Stdout(line) => print!("[backend] {}", String::from_utf8_lossy(&line)),
-                CommandEvent::Stderr(line) => eprint!("[backend] {}", String::from_utf8_lossy(&line)),
+                CommandEvent::Stdout(line) => {
+                    print!("[backend] {}", String::from_utf8_lossy(&line))
+                }
+                CommandEvent::Stderr(line) => {
+                    eprint!("[backend] {}", String::from_utf8_lossy(&line))
+                }
                 _ => {}
             }
         }
@@ -240,7 +249,11 @@ fn relaunch_elevated(app: tauri::AppHandle) -> Result<(), String> {
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let exe_wide: Vec<u16> = exe.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let exe_wide: Vec<u16> = exe
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
     let verb_wide: Vec<u16> = "runas\0".encode_utf16().collect();
 
     let result = unsafe {
@@ -287,6 +300,7 @@ pub fn run() {
         .manage(browser::Browser::default())
         .manage(imgsearch::ImgSearch::default())
         .manage(plugin_frame::Frames::default())
+        .manage(fl_bubble::FlBubble::default())
         .setup(|app| {
             // Development: VEXT_DEV_BACKEND=1 means a backend is already
             // running (python -m uvicorn app.web:app --port <VEXT_BACKEND_PORT>,
@@ -339,6 +353,8 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             plugin_frame::on_window_event(window, event);
+            // Before stop_backend below: the bubble windows keep the app from exiting.
+            fl_bubble::on_window_event(window, event);
             if window.label() == "main" {
                 if let tauri::WindowEvent::Destroyed = event {
                     stop_backend(window.app_handle());
@@ -346,6 +362,11 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            fl_bubble::fl_bubble_set,
+            fl_bubble::fl_bubble_expand,
+            fl_bubble::fl_bubble_cursor,
+            fl_drag::fl_drag_preset,
+            fl_focus::fl_focus,
             relaunch_elevated,
             browser::browser_place,
             browser::browser_go,

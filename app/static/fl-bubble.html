@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<title>FL bubble - VEXT</title>
+<script>
+  // Same appearance as the main window (localStorage is shared: same origin),
+  // applied before first paint.
+  (function () {
+    try {
+      var t = localStorage.getItem('pa-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) { /* storage unavailable: follow the system */ }
+  })();
+</script>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/css/fl-launch.css">
+<link rel="stylesheet" href="/static/css/fl-launcher.css">
+<link rel="stylesheet" href="/static/css/fl-bubble.css">
+</head>
+<body>
+<section class="fb-panel fln-panel" id="fb-panel" aria-label="FL plugin index" hidden>
+  <header class="fln-bar">
+    <h1 class="fln-title" id="fln-title">FL plugin index</h1>
+    <span class="fln-status" id="fln-status" data-state="closed" title=""><span class="fln-status-dot" aria-hidden="true"></span><span id="fln-status-text">FL closed</span></span>
+    <span class="fln-count" id="fln-count" aria-live="polite"></span>
+    <button type="button" class="fln-close" id="fln-close" title="Close" aria-label="Close">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>
+    </button>
+  </header>
+  <div class="fln-tools">
+    <label class="fln-search"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input type="search" id="fln-filter" placeholder="Search all FL presets..." aria-label="Search FL presets" autocomplete="off"></label>
+    <div class="fln-view-switch" id="fln-views" role="group" aria-label="Plugin view">
+      <button type="button" data-view="cards" aria-pressed="true" aria-label="Cards" title="Cards"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2.5" y="2.5" width="4" height="4" rx="1.5"/><rect x="9.5" y="2.5" width="4" height="4" rx="1.5"/><rect x="2.5" y="9.5" width="4" height="4" rx="1.5"/><rect x="9.5" y="9.5" width="4" height="4" rx="1.5"/></svg></button>
+      <button type="button" data-view="list" aria-pressed="false" aria-label="List" title="List"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2.5" y="2" width="3" height="3" rx="0.6"/><path d="M8 3.5h5.5"/><rect x="2.5" y="6.5" width="3" height="3" rx="0.6"/><path d="M8 8h5.5"/><rect x="2.5" y="11" width="3" height="3" rx="0.6"/><path d="M8 12.5h5.5"/></svg></button>
+      <button type="button" data-view="compact" aria-pressed="false" aria-label="Compact list" title="Compact list"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 3.5h11M2.5 6.5h11M2.5 9.5h11M2.5 12.5h11"/></svg></button>
+    </div>
+  </div>
+  <div class="fln-workspace">
+    <aside class="fln-sidebar" aria-label="Browse FL presets">
+      <div class="fln-type-switch" id="fln-types" role="group" aria-label="Plugin type">
+        <button type="button" data-type="all" aria-pressed="true">All</button>
+        <button type="button" data-type="effect" aria-pressed="false">Effects</button>
+        <button type="button" data-type="instrument" aria-pressed="false">Instruments</button>
+      </div>
+      <div class="fln-group-switch" id="fln-group-modes" role="group" aria-label="Browse by">
+        <button type="button" data-mode="category" aria-pressed="true">Category</button>
+        <button type="button" data-mode="vendor" aria-pressed="false">Vendor</button>
+      </div>
+      <nav class="fln-groups" id="fln-groups" aria-label="Categories"></nav>
+      <p class="fln-sidebar-note">FL Studio presets<br><span>Click to load &middot; drag into FL</span></p>
+    </aside>
+    <section class="fln-results">
+      <div class="fln-results-heading"><h2 id="fln-heading">All plugins</h2><button type="button" id="fln-reset" class="fln-reset">Clear filters</button></div>
+      <section class="fln-confirm" id="fln-confirm" role="alertdialog" aria-labelledby="fln-confirm-title" hidden>
+        <p class="fln-confirm-title" id="fln-confirm-title"></p>
+        <p class="fln-confirm-destination" id="fln-confirm-destination"></p>
+        <label class="fln-dont-ask"><input type="checkbox" id="fln-dont-ask"> Don’t ask again until VEXT closes</label>
+        <div class="fln-confirm-actions">
+          <button type="button" id="fln-cancel">Cancel</button>
+          <button type="button" class="fln-primary" id="fln-send">Load in FL</button>
+        </div>
+      </section>
+      <main class="fln-body">
+        <div class="fln-grid" id="fln-grid"></div>
+        <p class="fln-empty" id="fln-empty" hidden></p>
+      </main>
+    </section>
+  </div>
+  <footer class="fln-footer">
+    <span id="fln-conn"></span>
+    <span class="fln-result" id="fln-result" role="status" aria-live="polite"></span>
+  </footer>
+</section>
+<div class="fb-collapsed" id="fb-collapsed" role="button" tabindex="0" aria-label="FL plugin index: hover or click to open, drag to move" title="FL plugin index: hover or click to open, drag to move">
+  <svg class="fb-logo" aria-hidden="true"><use href="/static/logo-mark.svg#mark"/></svg>
+</div>
+<script src="/static/js/fl-preset.js"></script>
+<script src="/static/js/fl-launcher.js"></script>
+<script src="/static/js/fl-bubble.js"></script>
+</body>
+</html>

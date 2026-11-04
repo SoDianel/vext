@@ -18,7 +18,9 @@ use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::webview::{DownloadEvent, NewWindowResponse};
-use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Url, WebviewBuilder, WebviewUrl};
+use tauri::{
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Url, WebviewBuilder, WebviewUrl,
+};
 use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2;
 use webview2_com::{
     take_pwstr, ContainsFullScreenElementChangedEventHandler, DocumentTitleChangedEventHandler,
@@ -58,7 +60,10 @@ pub struct Browser {
 
 fn audio_url() -> String {
     let cfg = crate::config();
-    format!("ws://127.0.0.1:{}/api/browser/audio?token={}", cfg.port, cfg.token)
+    format!(
+        "ws://127.0.0.1:{}/api/browser/audio?token={}",
+        cfg.port, cfg.token
+    )
 }
 
 // Top-level navigations the browser may make: web pages only. Not VEXT's own
@@ -68,7 +73,9 @@ fn audio_url() -> String {
 // link would hand off to another app).
 fn allowed_navigation(url: &Url) -> bool {
     match url.scheme() {
-        "http" | "https" => !url.host_str().is_some_and(|h| h.to_ascii_lowercase().ends_with(".localhost")),
+        "http" | "https" => !url
+            .host_str()
+            .is_some_and(|h| h.to_ascii_lowercase().ends_with(".localhost")),
         "about" => true,
         _ => false,
     }
@@ -90,7 +97,10 @@ fn address(input: &str) -> Result<Url, String> {
         };
     }
     let first = text.split(['/', '?', '#']).next().unwrap_or("");
-    let host = first.rsplit_once(':').map_or(first, |(h, _)| h).to_ascii_lowercase();
+    let host = first
+        .rsplit_once(':')
+        .map_or(first, |(h, _)| h)
+        .to_ascii_lowercase();
     if !text.contains(char::is_whitespace) && (host.contains('.') || host == "localhost") {
         let local = host == "localhost" || host == "127.0.0.1";
         let scheme = if local { "http" } else { "https" };
@@ -163,7 +173,9 @@ fn watch(app: AppHandle, webview: &tauri::Webview, fence: Arc<AtomicI64>) -> tau
                 controller.add_LostFocus(&handler, &mut token)
             };
         }
-        let Ok(core) = controller.CoreWebView2() else { return };
+        let Ok(core) = controller.CoreWebView2() else {
+            return;
+        };
         let a = app.clone();
         let _ = core.add_NavigationStarting(
             &NavigationStartingEventHandler::create(Box::new(move |wv, _| {
@@ -241,12 +253,19 @@ fn contain_fullscreen(app: &AppHandle, core: &ICoreWebView2, fence: i64) {
     }));
     let mut own = 0i64;
     unsafe {
-        if core.add_ContainsFullScreenElementChanged(&handler, &mut own).is_err() {
+        if core
+            .add_ContainsFullScreenElementChanged(&handler, &mut own)
+            .is_err()
+        {
             return;
         }
         // Without a usable fence: the registration just before ours, which
         // is Tauri's (wry adds none). keep_window covers a miss.
-        let from = if (0..own).contains(&fence) && own - fence <= 64 { fence } else { own - 1 };
+        let from = if (0..own).contains(&fence) && own - fence <= 64 {
+            fence
+        } else {
+            own - 1
+        };
         for token in from.max(0)..own {
             let _ = core.remove_ContainsFullScreenElementChanged(token);
         }
@@ -256,12 +275,19 @@ fn contain_fullscreen(app: &AppHandle, core: &ICoreWebView2, fence: i64) {
 // Stores the newest ContainsFullScreenElementChanged token in `fence`, on the
 // UI thread, ahead of the browser's creation (both are queued there in order).
 fn take_fence(app: &AppHandle, fence: Arc<AtomicI64>) {
-    let Some(main) = app.get_webview("main") else { return };
+    let Some(main) = app.get_webview("main") else {
+        return;
+    };
     let _ = main.with_webview(move |platform| unsafe {
-        let Ok(core) = platform.controller().CoreWebView2() else { return };
+        let Ok(core) = platform.controller().CoreWebView2() else {
+            return;
+        };
         let probe = ContainsFullScreenElementChangedEventHandler::create(Box::new(|_, _| Ok(())));
         let mut token = 0i64;
-        if core.add_ContainsFullScreenElementChanged(&probe, &mut token).is_ok() {
+        if core
+            .add_ContainsFullScreenElementChanged(&probe, &mut token)
+            .is_ok()
+        {
             let _ = core.remove_ContainsFullScreenElementChanged(token);
             fence.store(token, Ordering::SeqCst);
         }
@@ -275,11 +301,17 @@ fn take_fence(app: &AppHandle, fence: Arc<AtomicI64>) {
 // whichever handler ran first. Nothing to do otherwise (tao ignores a
 // set_fullscreen to the state the window is already in).
 fn keep_window(app: &AppHandle) {
-    let Some(window) = app.get_window("main") else { return };
-    let Ok(was) = window.is_fullscreen() else { return };
+    let Some(window) = app.get_window("main") else {
+        return;
+    };
+    let Ok(was) = window.is_fullscreen() else {
+        return;
+    };
     queued(app.clone(), move |a| {
         queued(a, move |b| {
-            let Some(window) = b.get_window("main") else { return };
+            let Some(window) = b.get_window("main") else {
+                return;
+            };
             if window.is_fullscreen().is_ok_and(|now| now != was) {
                 eprintln!("[browser] a page's full screen reached the window; put back");
                 let _ = window.set_fullscreen(was);
@@ -331,7 +363,11 @@ fn create(app: &AppHandle, x: f64, y: f64, width: f64, height: f64) -> Result<()
     let fence = Arc::new(AtomicI64::new(-1));
     take_fence(app, fence.clone());
     let webview = window
-        .add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
+        .add_child(
+            builder,
+            LogicalPosition::new(x, y),
+            LogicalSize::new(width, height),
+        )
         .map_err(|e| e.to_string())?;
     watch(app.clone(), &webview, fence).map_err(|e| e.to_string())
 }
@@ -351,11 +387,17 @@ pub async fn browser_place(
     let Some(wv) = app.get_webview(LABEL) else {
         // Created the first time it's shown; hiding a browser that doesn't
         // exist yet is nothing to do.
-        return if visible { create(&app, x, y, width, height) } else { Ok(()) };
+        return if visible {
+            create(&app, x, y, width, height)
+        } else {
+            Ok(())
+        };
     };
     if visible {
-        wv.set_position(LogicalPosition::new(x, y)).map_err(|e| e.to_string())?;
-        wv.set_size(LogicalSize::new(width, height)).map_err(|e| e.to_string())?;
+        wv.set_position(LogicalPosition::new(x, y))
+            .map_err(|e| e.to_string())?;
+        wv.set_size(LogicalSize::new(width, height))
+            .map_err(|e| e.to_string())?;
         wv.show().map_err(|e| e.to_string())
     } else {
         wv.hide().map_err(|e| e.to_string())?;
@@ -392,8 +434,12 @@ pub async fn browser_go(app: AppHandle, action: String, url: Option<String>) -> 
             let _ = core.Stop();
         }),
         "reload" => wv.reload().map_err(|e| e.to_string()),
-        "home" => wv.navigate(HOME.parse().unwrap()).map_err(|e| e.to_string()),
-        "go" => wv.navigate(address(url.as_deref().unwrap_or(""))?).map_err(|e| e.to_string()),
+        "home" => wv
+            .navigate(HOME.parse().unwrap())
+            .map_err(|e| e.to_string()),
+        "go" => wv
+            .navigate(address(url.as_deref().unwrap_or(""))?)
+            .map_err(|e| e.to_string()),
         _ => Err(format!("unknown browser action: {action}")),
     }
 }
@@ -409,11 +455,26 @@ mod tests {
 
     #[test]
     fn addresses() {
-        assert_eq!(address("https://example.com/a").unwrap().as_str(), "https://example.com/a");
-        assert_eq!(address("youtube.com/watch?v=1").unwrap().as_str(), "https://youtube.com/watch?v=1");
-        assert_eq!(address("localhost:3000").unwrap().as_str(), "http://localhost:3000/");
-        assert!(address("lo-fi beats").unwrap().as_str().starts_with("https://duckduckgo.com/?q=lo-fi+beats"));
-        assert!(address("C++").unwrap().as_str().starts_with("https://duckduckgo.com/?q="));
+        assert_eq!(
+            address("https://example.com/a").unwrap().as_str(),
+            "https://example.com/a"
+        );
+        assert_eq!(
+            address("youtube.com/watch?v=1").unwrap().as_str(),
+            "https://youtube.com/watch?v=1"
+        );
+        assert_eq!(
+            address("localhost:3000").unwrap().as_str(),
+            "http://localhost:3000/"
+        );
+        assert!(address("lo-fi beats")
+            .unwrap()
+            .as_str()
+            .starts_with("https://duckduckgo.com/?q=lo-fi+beats"));
+        assert!(address("C++")
+            .unwrap()
+            .as_str()
+            .starts_with("https://duckduckgo.com/?q="));
         assert!(address("file:///C:/x").is_err());
         assert!(address("http://tauri.localhost/").is_err());
         assert!(address("").is_err());

@@ -1,0 +1,20 @@
+/* The bubble window: a stable VEXT circle (the drag handle) and the FL plugin index panel beside it. Loaded last. */
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; user-select: none; -webkit-user-select: none; }
+[hidden] { display: none !important; }
+/* The index is read and searched like the former window: its text stays selectable. */
+.fb-panel { user-select: text; -webkit-user-select: text; }
+.fb-collapsed {
+  position: absolute; z-index: 2; left: 8px; top: 8px;
+  width: 56px; height: 56px; box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--vext-jet); border: 2px solid var(--vext-taupe);
+  box-shadow: 0 3px 7px color-mix(in srgb, var(--vext-black) 35%, transparent);
+  cursor: pointer; transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+.fb-collapsed:hover { border-color: var(--vext-smoke); box-shadow: 0 3px 8px color-mix(in srgb, var(--vext-taupe) 35%, transparent); }
+.fb-collapsed:active { cursor: grabbing; }
+.fb-logo { transition: transform 220ms ease; width: 32px; height: 32px; pointer-events: none; color: var(--vext-smoke); fill: currentColor; }
+.fb-collapsed:hover .fb-logo { transform: scale(1.07); }
+@media (prefers-reduced-motion: reduce) {
+  .fb-collapsed, .fb-logo { transition: none; }
+}

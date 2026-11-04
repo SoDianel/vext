@@ -220,6 +220,10 @@
     }
     html += '<div class="aud-midi-list">';
     for (const d of connected) {
+      if (d.name.toLowerCase() === (midi.reserved || '').toLowerCase()) {
+        html += `<label class="aud-check"><input type="checkbox" disabled> ${esc(d.name)} <span class="hint">(reserved for FL Studio)</span></label>`;
+        continue;
+      }
       const on = all || saved.includes(d.id);
       html += `<label class="aud-check"><input type="checkbox" data-midi-id="${esc(d.id)}"${on ? ' checked' : ''}${all ? ' disabled' : ''}> ${esc(d.name)}${d.id !== d.name ? ` <span class="hint">(${esc(d.id.slice(d.name.length).trim())})</span>` : ''}</label>`;
     }

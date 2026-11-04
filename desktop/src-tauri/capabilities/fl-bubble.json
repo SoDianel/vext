@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "fl-bubble",
+  "description": "The FL quick launcher's bubble (webview \"fl-bubble\"): drags itself, resizes its canvas and clip region around its centre, reads the cursor, hands focus to FL Studio and drags presets into it. No other command.",
+  "webviews": ["fl-bubble"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "allow-fl-bubble-expand",
+    "allow-fl-bubble-cursor",
+    "allow-fl-focus",
+    "allow-fl-drag-preset"
+  ]
+}

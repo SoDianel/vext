@@ -5,6 +5,9 @@
   "webviews": ["main"],
   "permissions": [
     "core:default",
+    "allow-fl-drag-preset",
+    "allow-fl-focus",
+    "allow-fl-bubble-set",
     "opener:default",
     "opener:allow-reveal-item-in-dir",
     "dialog:allow-open",

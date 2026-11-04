@@ -10,6 +10,11 @@ fn main() {
     // origin could call every command.
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "fl_bubble_set",
+            "fl_bubble_expand",
+            "fl_bubble_cursor",
+            "fl_drag_preset",
+            "fl_focus",
             "relaunch_elevated",
             "browser_place",
             "browser_go",

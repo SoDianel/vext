@@ -58,30 +58,36 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
-use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent};
+use tauri::{
+    AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window,
+    WindowEvent,
+};
 use windows::core::w;
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Dwm::{
-    DwmSetWindowAttribute, DWMNCRENDERINGPOLICY, DWMNCRP_DISABLED, DWMNCRP_USEWINDOWSTYLE, DWMWA_NCRENDERING_POLICY,
+    DwmSetWindowAttribute, DWMNCRENDERINGPOLICY, DWMNCRP_DISABLED, DWMNCRP_USEWINDOWSTYLE,
+    DWMWA_NCRENDERING_POLICY,
 };
 use windows::Win32::Graphics::Gdi::{
-    BeginPaint, ClientToScreen, CreateFontW, CreateRectRgn, CreateSolidBrush, DeleteObject, DrawTextW, EndPaint,
-    FillRect, GetWindowRgnBox, InvalidateRect, SelectObject, SetBkMode, SetTextColor, SetWindowRgn, CLEARTYPE_QUALITY,
-    CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET, DT_CENTER, DT_SINGLELINE, DT_VCENTER, HGDIOBJ, OUT_DEFAULT_PRECIS,
-    PAINTSTRUCT, SIMPLEREGION, TRANSPARENT,
+    BeginPaint, ClientToScreen, CreateFontW, CreateRectRgn, CreateSolidBrush, DeleteObject,
+    DrawTextW, EndPaint, FillRect, GetWindowRgnBox, InvalidateRect, SelectObject, SetBkMode,
+    SetTextColor, SetWindowRgn, CLEARTYPE_QUALITY, CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET, DT_CENTER,
+    DT_SINGLELINE, DT_VCENTER, HGDIOBJ, OUT_DEFAULT_PRECIS, PAINTSTRUCT, SIMPLEREGION, TRANSPARENT,
 };
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
-    BeginDeferWindowPos, CreateWindowExW, DefWindowProcW, GetWindow, GW_HWNDPREV, DeferWindowPos, DestroyWindow, EndDeferWindowPos,
-    GetAncestor, GetClientRect, GetWindowLongPtrW, LoadCursorW, RegisterClassW, SetCursor,
-    SetLayeredWindowAttributes, IDC_ARROW, LWA_ALPHA, MA_NOACTIVATEANDEAT, WM_ERASEBKGND, WM_MOUSEACTIVATE, WM_PAINT,
-    WM_SETCURSOR, WM_SIZE, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_POPUP,
-    GetWindowRect, GetWindowThreadProcessId, IsHungAppWindow, IsIconic, IsWindow, PostMessageW,
-    RegisterWindowMessageW, SetWindowLongPtrW, SetWindowPos, ShowWindow, GA_ROOT, GWLP_HWNDPARENT, GWL_EXSTYLE,
-    GWL_STYLE, HWND_TOP, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, SWP_NOZORDER,
-    SWP_SHOWWINDOW, SW_HIDE, SW_RESTORE, WM_SIZING, WMSZ_BOTTOMLEFT, WMSZ_LEFT, WMSZ_TOP, WMSZ_TOPLEFT,
-    WMSZ_TOPRIGHT, WS_EX_APPWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_THICKFRAME, WS_VISIBLE,
+    BeginDeferWindowPos, CreateWindowExW, DefWindowProcW, DeferWindowPos, DestroyWindow,
+    EndDeferWindowPos, GetAncestor, GetClientRect, GetWindow, GetWindowLongPtrW, GetWindowRect,
+    GetWindowThreadProcessId, IsHungAppWindow, IsIconic, IsWindow, LoadCursorW, PostMessageW,
+    RegisterClassW, RegisterWindowMessageW, SetCursor, SetLayeredWindowAttributes,
+    SetWindowLongPtrW, SetWindowPos, ShowWindow, GA_ROOT, GWLP_HWNDPARENT, GWL_EXSTYLE, GWL_STYLE,
+    GW_HWNDPREV, HWND_TOP, IDC_ARROW, LWA_ALPHA, MA_NOACTIVATEANDEAT, SWP_FRAMECHANGED,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW,
+    SW_HIDE, SW_RESTORE, WMSZ_BOTTOMLEFT, WMSZ_LEFT, WMSZ_TOP, WMSZ_TOPLEFT, WMSZ_TOPRIGHT,
+    WM_ERASEBKGND, WM_MOUSEACTIVATE, WM_PAINT, WM_SETCURSOR, WM_SIZE, WM_SIZING, WNDCLASSW,
+    WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX,
+    WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
 };
 
 pub const LABEL: &str = "plugin-frame";
@@ -273,7 +279,12 @@ fn is_window(raw: isize) -> bool {
 fn window_rect(raw: isize) -> Option<Rect> {
     let mut r = RECT::default();
     unsafe { GetWindowRect(hwnd(raw), &mut r) }.ok()?;
-    Some(Rect { x: r.left, y: r.top, w: r.right - r.left, h: r.bottom - r.top })
+    Some(Rect {
+        x: r.left,
+        y: r.top,
+        w: r.right - r.left,
+        h: r.bottom - r.top,
+    })
 }
 
 // A window's client area on screen.
@@ -285,7 +296,12 @@ fn client_rect(raw: isize) -> Option<Rect> {
         if !ClientToScreen(hwnd(raw), &mut origin).as_bool() {
             return None;
         }
-        Some(Rect { x: origin.x, y: origin.y, w: r.right, h: r.bottom })
+        Some(Rect {
+            x: origin.x,
+            y: origin.y,
+            w: r.right,
+            h: r.bottom,
+        })
     }
 }
 
@@ -304,7 +320,12 @@ fn main_client() -> Option<Rect> {
 // what its page draws, and grows the window rect by these.
 fn insets(raw: isize) -> (i32, i32, i32, i32) {
     match (window_rect(raw), client_rect(raw)) {
-        (Some(w), Some(c)) => (c.x - w.x, c.y - w.y, (w.x + w.w) - (c.x + c.w), (w.y + w.h) - (c.y + c.h)),
+        (Some(w), Some(c)) => (
+            c.x - w.x,
+            c.y - w.y,
+            (w.x + w.w) - (c.x + c.w),
+            (w.y + w.h) - (c.y + c.h),
+        ),
         _ => (0, 0, 0, 0),
     }
 }
@@ -324,7 +345,12 @@ fn clamp(c: Rect, x: i32, y: i32, w: i32, h: i32) -> (i32, i32) {
 fn intersect(a: Rect, b: Rect) -> Option<Rect> {
     let (x0, y0) = (a.x.max(b.x), a.y.max(b.y));
     let (x1, y1) = ((a.x + a.w).min(b.x + b.w), (a.y + a.h).min(b.y + b.h));
-    (x1 > x0 && y1 > y0).then_some(Rect { x: x0, y: y0, w: x1 - x0, h: y1 - y0 })
+    (x1 > x0 && y1 > y0).then_some(Rect {
+        x: x0,
+        y: y0,
+        w: x1 - x0,
+        h: y1 - y0,
+    })
 }
 
 // A top-level window of another process: the main page can only hand over a
@@ -370,12 +396,23 @@ impl Editor {
         let owner = GetWindowLongPtrW(h, GWLP_HWNDPARENT);
         SetWindowLongPtrW(h, GWLP_HWNDPARENT, frame);
         // Applied by the first layout (SWP_FRAMECHANGED); neither changes the client area.
-        SetWindowLongPtrW(h, GWL_STYLE, (style & !(WS_MINIMIZEBOX | WS_MAXIMIZEBOX).0) as isize);
+        SetWindowLongPtrW(
+            h,
+            GWL_STYLE,
+            (style & !(WS_MINIMIZEBOX | WS_MAXIMIZEBOX).0) as isize,
+        );
         SetWindowLongPtrW(h, GWL_EXSTYLE, (ex_style & !WS_EX_APPWINDOW.0) as isize);
         // A region only clips the caption once DWM no longer draws it (with
         // DWM's frame the region was dropped or ignored); clip() sets it next.
         set_nc_rendering(h, DWMNCRP_DISABLED);
-        Ok(Editor { hwnd: raw, style, ex_style, owner, size, resizable: style & WS_THICKFRAME.0 != 0 })
+        Ok(Editor {
+            hwnd: raw,
+            style,
+            ex_style,
+            owner,
+            size,
+            resizable: style & WS_THICKFRAME.0 != 0,
+        })
     }
 
     // Gives a still-open editor its own window back (owner, region, boxes),
@@ -389,7 +426,11 @@ impl Editor {
         let _ = SetWindowRgn(h, None, true);
         set_nc_rendering(h, DWMNCRP_USEWINDOWSTYLE);
         let visible = GetWindowLongPtrW(h, GWL_STYLE) as u32 & WS_VISIBLE.0;
-        SetWindowLongPtrW(h, GWL_STYLE, ((self.style & !WS_VISIBLE.0) | visible) as isize);
+        SetWindowLongPtrW(
+            h,
+            GWL_STYLE,
+            ((self.style & !WS_VISIBLE.0) | visible) as isize,
+        );
         SetWindowLongPtrW(h, GWL_EXSTYLE, self.ex_style as isize);
         SetWindowLongPtrW(h, GWLP_HWNDPARENT, self.owner);
         let _ = SetWindowPos(
@@ -399,7 +440,12 @@ impl Editor {
             0,
             0,
             0,
-            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+            SWP_FRAMECHANGED
+                | SWP_NOMOVE
+                | SWP_NOSIZE
+                | SWP_NOZORDER
+                | SWP_NOACTIVATE
+                | SWP_SHOWWINDOW,
         );
     }
 }
@@ -418,7 +464,12 @@ unsafe fn set_nc_rendering(h: HWND, policy: DWMNCRENDERINGPOLICY) {
 // rect grown by the window's caption and borders.
 fn window_for_client(raw: isize, client: Rect) -> Rect {
     let (l, t, r, b) = insets(raw);
-    Rect { x: client.x - l, y: client.y - t, w: client.w + l + r, h: client.h + t + b }
+    Rect {
+        x: client.x - l,
+        y: client.y - t,
+        w: client.w + l + r,
+        h: client.h + t + b,
+    }
 }
 
 // Shows only the editor's client area, and of that only what is inside
@@ -427,14 +478,27 @@ fn window_for_client(raw: isize, client: Rect) -> Rect {
 // unless it already is. Called after every placement, so it follows the
 // plugin resizing its window and the scrolling.
 unsafe fn clip(raw: isize, view: Rect) {
-    let (Some(w), Some(c)) = (window_rect(raw), client_rect(raw)) else { return };
-    let shown = intersect(c, view).unwrap_or(Rect { x: c.x, y: c.y, w: 0, h: 0 });
+    let (Some(w), Some(c)) = (window_rect(raw), client_rect(raw)) else {
+        return;
+    };
+    let shown = intersect(c, view).unwrap_or(Rect {
+        x: c.x,
+        y: c.y,
+        w: 0,
+        h: 0,
+    });
     let (left, top) = (shown.x - w.x, shown.y - w.y);
-    let want = RECT { left, top, right: left + shown.w, bottom: top + shown.h };
+    let want = RECT {
+        left,
+        top,
+        right: left + shown.w,
+        bottom: top + shown.h,
+    };
     let h = hwnd(raw);
     let mut have = RECT::default();
     if GetWindowRgnBox(h, &mut have) == SIMPLEREGION
-        && (have.left, have.top, have.right, have.bottom) == (want.left, want.top, want.right, want.bottom)
+        && (have.left, have.top, have.right, have.bottom)
+            == (want.left, want.top, want.right, want.bottom)
     {
         return;
     }
@@ -518,7 +582,10 @@ struct Body {
 impl Body {
     // The viewport's size: the body minus its scroll bars.
     fn view(self, sb: i32) -> (i32, i32) {
-        (self.w - if self.bar_y { sb } else { 0 }, self.h - if self.bar_x { sb } else { 0 })
+        (
+            self.w - if self.bar_y { sb } else { 0 },
+            self.h - if self.bar_x { sb } else { 0 },
+        )
     }
 }
 
@@ -532,8 +599,16 @@ fn body(ew: i32, eh: i32, max_w: i32, max_h: i32, min_w: i32, sb: i32) -> Body {
     if bar_x && !bar_y && eh + sb > max_h {
         bar_y = true;
     }
-    let w = if bar_x { max_w } else { (ew + if bar_y { sb } else { 0 }).max(min_w).min(max_w) };
-    let h = if bar_y { max_h } else { eh + if bar_x { sb } else { 0 } };
+    let w = if bar_x {
+        max_w
+    } else {
+        (ew + if bar_y { sb } else { 0 }).max(min_w).min(max_w)
+    };
+    let h = if bar_y {
+        max_h
+    } else {
+        eh + if bar_x { sb } else { 0 }
+    };
     Body { w, h, bar_x, bar_y }
 }
 
@@ -545,7 +620,14 @@ fn frame_size(f: &Frame, client: Rect) -> (i32, i32) {
     let c = chrome(f);
     let (ew, eh) = f.editor.size;
     let b = body(ew, eh, client.w, client.h - c.bars(), c.min_w, c.sb);
-    (b.w, if f.mode == Mode::Minimize { c.bars() } else { c.bars() + b.h })
+    (
+        b.w,
+        if f.mode == Mode::Minimize {
+            c.bars()
+        } else {
+            c.bars() + b.h
+        },
+    )
 }
 
 // `client`: the main window's client area. The frame's content is placed
@@ -560,21 +642,48 @@ fn plan(f: &Frame, client: Rect) -> Plan {
             // The whole client area; the editor centered on the body (between
             // the two bars), as big as the body if it can be resized; scroll
             // bars if it still doesn't fit.
-            let size = f.fit.unwrap_or(if f.editor.resizable { (client.w, max_h) } else { f.editor.size });
+            let size = f.fit.unwrap_or(if f.editor.resizable {
+                (client.w, max_h)
+            } else {
+                f.editor.size
+            });
             let b = body(size.0, size.1, client.w, max_h, client.w, c.sb);
-            (client, size, Body { w: client.w, h: max_h, ..b })
+            (
+                client,
+                size,
+                Body {
+                    w: client.w,
+                    h: max_h,
+                    ..b
+                },
+            )
         }
         _ => {
             let (ew, eh) = f.editor.size;
             let b = body(ew, eh, client.w, max_h, c.min_w, c.sb);
-            let (w, h) = (b.w, if f.mode == Mode::Minimize { c.bars() } else { c.bars() + b.h });
+            let (w, h) = (
+                b.w,
+                if f.mode == Mode::Minimize {
+                    c.bars()
+                } else {
+                    c.bars() + b.h
+                },
+            );
             let (x, y) = clamp(client, client.x + f.offset.0, client.y + f.offset.1, w, h);
             (Rect { x, y, w, h }, (ew, eh), b)
         }
     };
     let (view_w, view_h) = b.view(c.sb);
-    let viewport = Rect { x: content.x, y: content.y + title, w: view_w, h: view_h };
-    let scroll = ((f.scroll.0).clamp(0, (ew - view_w).max(0)), (f.scroll.1).clamp(0, (eh - view_h).max(0)));
+    let viewport = Rect {
+        x: content.x,
+        y: content.y + title,
+        w: view_w,
+        h: view_h,
+    };
+    let scroll = (
+        (f.scroll.0).clamp(0, (ew - view_w).max(0)),
+        (f.scroll.1).clamp(0, (eh - view_h).max(0)),
+    );
     let shows = f.mode != Mode::Minimize;
     // Centered where it's smaller than the viewport.
     let editor_rect = shows.then_some(Rect {
@@ -598,7 +707,12 @@ fn plan(f: &Frame, client: Rect) -> Plan {
         gen: f.gen,
         frame: f.hwnd,
         editor: f.editor.hwnd,
-        frame_rect: Rect { x: content.x - l, y: content.y - t, w: content.w + l + r, h: content.h + t + b },
+        frame_rect: Rect {
+            x: content.x - l,
+            y: content.y - t,
+            w: content.w + l + r,
+            h: content.h + t + b,
+        },
         editor_rect,
         viewport,
         scroll,
@@ -627,7 +741,10 @@ fn apply(p: &Plan) -> Option<Rect> {
         if p.frame_changed {
             editor_flags |= SWP_FRAMECHANGED;
         }
-        let editor_rect = p.editor_rect.filter(|_| editor_ok).map(|c| window_for_client(p.editor, c));
+        let editor_rect = p
+            .editor_rect
+            .filter(|_| editor_ok)
+            .map(|c| window_for_client(p.editor, c));
         let f = p.frame_rect;
         let deferred = (|| -> windows::core::Result<()> {
             let mut dwp = BeginDeferWindowPos(2)?;
@@ -651,8 +768,24 @@ fn apply(p: &Plan) -> Option<Rect> {
         } else {
             clip(p.editor, p.viewport);
             if p.raise {
-                let _ = SetWindowPos(frame, Some(HWND_TOP), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-                let _ = SetWindowPos(editor, Some(HWND_TOP), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                let _ = SetWindowPos(
+                    frame,
+                    Some(HWND_TOP),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                );
+                let _ = SetWindowPos(
+                    editor,
+                    Some(HWND_TOP),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                );
             }
             if p.reveal {
                 // In place, clipped, above the frame that is now on screen: the worker uncloaks it.
@@ -661,11 +794,16 @@ fn apply(p: &Plan) -> Option<Rect> {
         }
         let placed = client_rect(p.editor);
         if is_window(p.overlay) {
-            match placed.and_then(|r| intersect(r, p.viewport)).filter(|_| p.overlay_on) {
+            match placed
+                .and_then(|r| intersect(r, p.viewport))
+                .filter(|_| p.overlay_on)
+            {
                 Some(r) => {
                     // Right above the editor: inserted after the window above it
                     // (HWND_TOP left it under its owner, the editor of another process).
-                    let above = GetWindow(editor, GW_HWNDPREV).ok().filter(|h| !h.is_invalid());
+                    let above = GetWindow(editor, GW_HWNDPREV)
+                        .ok()
+                        .filter(|h| !h.is_invalid());
                     let (after, z) = match above {
                         Some(h) if h.0 as isize == p.overlay => (None, SWP_NOZORDER),
                         Some(h) => (Some(h), SWP_NOACTIVATE),
@@ -701,7 +839,9 @@ fn with_frame<T>(app: &AppHandle, f: impl FnOnce(&mut Frame) -> T) -> Option<T> 
 fn relayout(app: &AppHandle) {
     for _ in 0..3 {
         let Some(client) = main_client() else { return };
-        let Some(p) = with_frame(app, |f| plan(f, client)) else { return };
+        let Some(p) = with_frame(app, |f| plan(f, client)) else {
+            return;
+        };
         let placed = apply(&p);
         let mut told = None;
         let again = with_frame(app, |f| {
@@ -741,11 +881,16 @@ fn relayout(app: &AppHandle) {
 // ---------- the bypass overlay ----------
 
 const OVERLAY_ALPHA: u8 = 168; // of 255: the editor stays visible underneath, darkened
-// The palette's Black (#0a0908) and White Smoke (#f2f4f3), as COLORREF (0x00BBGGRR).
+                               // The palette's Black (#0a0908) and White Smoke (#f2f4f3), as COLORREF (0x00BBGGRR).
 const OVERLAY_BG: u32 = 0x0008_090a;
 const OVERLAY_FG: u32 = 0x00f3_f4f2;
 
-unsafe extern "system" fn overlay_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn overlay_proc(
+    h: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
     match msg {
         WM_PAINT => {
             let mut ps = PAINTSTRUCT::default();
@@ -776,7 +921,12 @@ unsafe extern "system" fn overlay_proc(h: HWND, msg: u32, wparam: WPARAM, lparam
             SetBkMode(dc, TRANSPARENT);
             SetTextColor(dc, COLORREF(OVERLAY_FG));
             let mut text: Vec<u16> = "Bypassed".encode_utf16().collect();
-            DrawTextW(dc, &mut text, &mut r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            DrawTextW(
+                dc,
+                &mut text,
+                &mut r,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+            );
             SelectObject(dc, old);
             let _ = DeleteObject(HGDIOBJ(font.0));
             let _ = EndPaint(h, &ps);
@@ -806,7 +956,11 @@ fn create_overlay(editor: isize) -> isize {
     unsafe {
         let class = w!("VEXTBypassOverlay");
         let registered = *CLASS.get_or_init(|| {
-            let wc = WNDCLASSW { lpfnWndProc: Some(overlay_proc), lpszClassName: class, ..Default::default() };
+            let wc = WNDCLASSW {
+                lpfnWndProc: Some(overlay_proc),
+                lpszClassName: class,
+                ..Default::default()
+            };
             RegisterClassW(&wc) != 0
         });
         if !registered || !is_window(editor) {
@@ -848,7 +1002,9 @@ fn destroy_overlay(overlay: isize) {
 // The frame is resizable (its invisible borders) only for a resizable editor in
 // the normal mode (main thread).
 fn sync_resizable(f: &Frame) {
-    let _ = f.window.set_resizable(f.editor.resizable && f.mode == Mode::Normal);
+    let _ = f
+        .window
+        .set_resizable(f.editor.resizable && f.mode == Mode::Normal);
 }
 
 // WM_SIZING on the frame (main thread): `r` is the window rect the user's drag
@@ -856,7 +1012,9 @@ fn sync_resizable(f: &Frame) {
 // is changed to fit what the plugin accepted, anchored on the dragged edge.
 // Returns whether `r` was handled.
 fn on_sizing(app: &AppHandle, edge: u32, r: &mut RECT) -> bool {
-    let Some(client) = main_client() else { return false };
+    let Some(client) = main_client() else {
+        return false;
+    };
     let Some((frame, editor, c)) = with_frame(app, |f| {
         (f.mode == Mode::Normal && f.editor.resizable).then(|| (f.hwnd, f.editor.hwnd, chrome(f)))
     })
@@ -869,10 +1027,23 @@ fn on_sizing(app: &AppHandle, edge: u32, r: &mut RECT) -> bool {
     let (l, t, rr, b) = insets(frame);
     // The proposed content (client) rect, then the editor's share of it (the
     // body, between the title bar and the control bar).
-    let content = Rect { x: r.left + l, y: r.top + t, w: r.right - r.left - l - rr, h: r.bottom - r.top - t - b };
+    let content = Rect {
+        x: r.left + l,
+        y: r.top + t,
+        w: r.right - r.left - l - rr,
+        h: r.bottom - r.top - t - b,
+    };
     let want_w = content.w.clamp(1, client.w);
     let want_h = (content.h - c.bars()).clamp(1, (client.h - c.bars()).max(1));
-    let target = window_for_client(editor, Rect { x: content.x, y: content.y + c.title, w: want_w, h: want_h });
+    let target = window_for_client(
+        editor,
+        Rect {
+            x: content.x,
+            y: content.y + c.title,
+            w: want_w,
+            h: want_h,
+        },
+    );
     unsafe {
         let _ = SetWindowPos(
             hwnd(editor),
@@ -885,7 +1056,9 @@ fn on_sizing(app: &AppHandle, edge: u32, r: &mut RECT) -> bool {
         );
     }
     // What the plugin settled on (its minimum, maximum, steps or aspect ratio).
-    let Some(got) = client_rect(editor) else { return false };
+    let Some(got) = client_rect(editor) else {
+        return false;
+    };
     let new_w = got.w.max(c.min_w) + l + rr;
     let new_h = c.bars() + got.h + t + b;
     let from_left = matches!(edge, WMSZ_LEFT | WMSZ_TOPLEFT | WMSZ_BOTTOMLEFT);
@@ -918,7 +1091,13 @@ unsafe extern "system" fn frame_subclass(
 ) -> LRESULT {
     if msg == hotkey_message() {
         if let Some(app) = APP.get() {
-            let _ = app.emit_to("main", SPACE_EVENT, Space { seq: wparam.0 as u64 });
+            let _ = app.emit_to(
+                "main",
+                SPACE_EVENT,
+                Space {
+                    seq: wparam.0 as u64,
+                },
+            );
         }
         return LRESULT(0);
     }
@@ -983,7 +1162,13 @@ fn close(app: &AppHandle, gen: Option<u64>) {
     destroy_overlay(f.overlay);
     unsafe { f.editor.release() };
     let _ = f.window.destroy();
-    let _ = app.emit_to("main", CLOSED_EVENT, Closed { plugin_id: f.plugin_id });
+    let _ = app.emit_to(
+        "main",
+        CLOSED_EVENT,
+        Closed {
+            plugin_id: f.plugin_id,
+        },
+    );
 }
 
 // Watches one editor (one frame generation): closes the frame when the editor
@@ -994,9 +1179,10 @@ fn watch(app: AppHandle, gen: u64, editor: isize) {
         loop {
             std::thread::sleep(POLL);
             ticks = ticks.saturating_add(1);
-            let Some((placed, shown, mode)) = with_frame(&app, |f| (f.gen == gen).then_some((f.placed, f.shown, f.mode)))
-                .flatten()
-            else {
+            let Some((placed, shown, mode)) = with_frame(&app, |f| {
+                (f.gen == gen).then_some((f.placed, f.shown, f.mode))
+            })
+            .flatten() else {
                 return; // closed, or another editor took the frame
             };
             if !is_window(editor) {
@@ -1006,7 +1192,10 @@ fn watch(app: AppHandle, gen: u64, editor: isize) {
             }
             // Its client area: `placed` is where that was put.
             let now = client_rect(editor);
-            let changed = mode != Mode::Minimize && placed.is_some() && now != placed && main_client().is_some();
+            let changed = mode != Mode::Minimize
+                && placed.is_some()
+                && now != placed
+                && main_client().is_some();
             let late = !shown && ticks == SHOW_ANYWAY_AFTER;
             if changed || late {
                 let a = app.clone();
@@ -1053,35 +1242,42 @@ fn create_window(app: &AppHandle, plugin_id: i64, name: &str) -> Result<WebviewW
         return Err("the main window is gone".into());
     }
     // id and name in the address too, so the title bar has them on its first paint.
-    let query = Url::parse_with_params("http://x/", &[("id", plugin_id.to_string()), ("name", name.to_string())])
-        .ok()
-        .and_then(|u| u.query().map(str::to_string))
-        .unwrap_or_default();
-    WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App(format!("{PAGE}?{query}").into()))
-        .title(format!("{name} - VEXT"))
-        .decorations(false)
-        .shadow(true)
-        .resizable(false)
-        .maximizable(false)
-        .minimizable(false)
-        .skip_taskbar(true)
-        .visible(false)
-        .focused(false)
-        .inner_size(MIN_WIDTH, TITLE_HEIGHT + CONTROLS_HEIGHT)
-        .owner_raw(hwnd(main))
-        .initialization_script(crate::config().init_script())
-        // Identical to every other webview's (see crate::WEBVIEW_ARGS): one WebView2 environment.
-        .additional_browser_args(crate::WEBVIEW_ARGS)
-        // Only its own page: no navigating away, no new windows.
-        .on_navigation(|url| url.host_str() == Some("tauri.localhost"))
-        .on_new_window(|_, _| NewWindowResponse::Deny)
-        .on_page_load(|w, payload| {
-            if payload.event() == PageLoadEvent::Finished {
-                page_loaded(w.app_handle());
-            }
-        })
-        .build()
-        .map_err(|e| e.to_string())
+    let query = Url::parse_with_params(
+        "http://x/",
+        &[("id", plugin_id.to_string()), ("name", name.to_string())],
+    )
+    .ok()
+    .and_then(|u| u.query().map(str::to_string))
+    .unwrap_or_default();
+    WebviewWindowBuilder::new(
+        app,
+        LABEL,
+        WebviewUrl::App(format!("{PAGE}?{query}").into()),
+    )
+    .title(format!("{name} - VEXT"))
+    .decorations(false)
+    .shadow(true)
+    .resizable(false)
+    .maximizable(false)
+    .minimizable(false)
+    .skip_taskbar(true)
+    .visible(false)
+    .focused(false)
+    .inner_size(MIN_WIDTH, TITLE_HEIGHT + CONTROLS_HEIGHT)
+    .owner_raw(hwnd(main))
+    .initialization_script(crate::config().init_script())
+    // Identical to every other webview's (see crate::WEBVIEW_ARGS): one WebView2 environment.
+    .additional_browser_args(crate::WEBVIEW_ARGS)
+    // Only its own page: no navigating away, no new windows.
+    .on_navigation(|url| url.host_str() == Some("tauri.localhost"))
+    .on_new_window(|_, _| NewWindowResponse::Deny)
+    .on_page_load(|w, payload| {
+        if payload.event() == PageLoadEvent::Finished {
+            page_loaded(w.app_handle());
+        }
+    })
+    .build()
+    .map_err(|e| e.to_string())
 }
 
 // Hands the editor to the frame window (main thread).
@@ -1108,7 +1304,14 @@ fn attach(
     let frame = match old {
         // The same editor again (the page re-sent it): nothing changes but
         // the name and the watcher.
-        Some(o) if o.editor.hwnd == editor => Frame { gen, plugin_id, name, placed: None, view: None, ..o },
+        Some(o) if o.editor.hwnd == editor => Frame {
+            gen,
+            plugin_id,
+            name,
+            placed: None,
+            view: None,
+            ..o
+        },
         o => {
             if let Some(o) = &o {
                 destroy_overlay(o.overlay);
@@ -1206,8 +1409,14 @@ pub async fn plugin_frame_open(
         }
     };
     let frame_hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
-    let fallback = (width.unwrap_or(0.0).round() as i32, height.unwrap_or(0.0).round() as i32);
-    let result = on_main(&app, move |app| attach(app, window, frame_hwnd, plugin_id, name, editor, fallback)).await?;
+    let fallback = (
+        width.unwrap_or(0.0).round() as i32,
+        height.unwrap_or(0.0).round() as i32,
+    );
+    let result = on_main(&app, move |app| {
+        attach(app, window, frame_hwnd, plugin_id, name, editor, fallback)
+    })
+    .await?;
     if result.is_err() && with_frame(&app, |_| ()).is_none() {
         // Nothing went into a new window: don't leave it behind.
         if let Some(w) = app.get_webview_window(LABEL) {
@@ -1258,10 +1467,18 @@ pub async fn plugin_frame_toggle(app: AppHandle, mode: String) -> Result<Toggled
     };
     let now = on_main(&app, move |app| {
         let (now, window, resizable) = with_frame(app, |f| {
-            f.mode = if f.mode == wanted { Mode::Normal } else { wanted };
+            f.mode = if f.mode == wanted {
+                Mode::Normal
+            } else {
+                wanted
+            };
             f.fit = None;
             f.scroll = (0, 0);
-            (f.mode, f.window.clone(), f.editor.resizable && f.mode == Mode::Normal)
+            (
+                f.mode,
+                f.window.clone(),
+                f.editor.resizable && f.mode == Mode::Normal,
+            )
         })?;
         // Outside the frame lock: changing the style can send window events (relayout).
         let _ = window.set_resizable(resizable);
@@ -1270,7 +1487,8 @@ pub async fn plugin_frame_toggle(app: AppHandle, mode: String) -> Result<Toggled
         Some(now)
     })
     .await?;
-    now.map(|mode| Toggled { mode }).ok_or_else(|| "no plugin is open".to_string())
+    now.map(|mode| Toggled { mode })
+        .ok_or_else(|| "no plugin is open".to_string())
 }
 
 // Bypass on: a dark overlay over the editor's visible part that says so and
@@ -1360,7 +1578,8 @@ pub fn on_window_event(window: &Window, event: &WindowEvent) {
         // close() there is nothing left to do: it took the state before
         // destroying the window.
         (LABEL, WindowEvent::Destroyed) => close(app, None),
-        (LABEL, WindowEvent::ScaleFactorChanged { .. }) | ("main", WindowEvent::ScaleFactorChanged { .. }) => {
+        (LABEL, WindowEvent::ScaleFactorChanged { .. })
+        | ("main", WindowEvent::ScaleFactorChanged { .. }) => {
             // After the window has taken its new DPI size, from a later turn
             // of the event loop. (tao also re-applies the frame's window flags
             // then, and since the frame is shown with SetWindowPos rather than
