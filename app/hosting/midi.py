@@ -158,6 +158,12 @@ class MidiInputs:
         "failed": [{"id", "error"}], "available": [ids]}."""
         self.close()
         available = list_inputs()
+        # The FL controller owns this input; even "all keyboards" must leave it alone.
+        from app import db
+        from app.config import DB_PATH
+        with db.connect(DB_PATH) as conn:
+            reserved = db.get_setting(conn, "fl_launch_port", "Vext").casefold()
+        available = [d for d in available if d["name"].casefold() != reserved]
         if wanted == "*":
             targets = available
             missing = []

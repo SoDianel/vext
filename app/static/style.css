@@ -1358,12 +1358,61 @@ a.tag.link-chip:hover { text-decoration: underline; }
 .link-input input[type="text"] { flex: 1 1 260px; }
 .link-input .none-check { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; font-size: 12px; color: var(--fg-2); }
 
-/* ---------- configuration: DAWs ---------- */
-.daw-row { flex-wrap: nowrap; align-items: flex-start; justify-content: flex-start; }
-.daw-logo { flex: 0 0 40px; width: 40px; height: 40px; }
-.daw-logo svg { display: block; width: 100%; height: 100%; }
-.daw-row:has(input:disabled) .daw-logo { opacity: 0.45; filter: grayscale(0.6); }
-.daw-row:has(input:disabled) strong { color: var(--fg-3); }
+/* ---------- configuration: DAWs (one dropdown per DAW, index.html) ---------- */
+.daw-panel {
+  margin-bottom: 12px;
+  border-radius: var(--radius-m);
+  background: var(--bg-control);
+  box-shadow: 0 0 0 1px var(--separator), var(--shadow-1);
+}
+.daw-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-m);
+  cursor: pointer;
+  list-style: none;
+}
+.daw-summary::-webkit-details-marker { display: none; }
+.daw-summary:hover { background: var(--bg-hover); }
+.daw-name { flex: 1 1 auto; min-width: 0; font-weight: 500; color: var(--fg); }
+.daw-logo {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.daw-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.daw-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--vext-jet);
+  color: var(--vext-smoke);
+  font-size: 16px;
+  font-weight: 600;
+}
+/* A chevron drawn from two borders: points down when closed, up when open. */
+.daw-chevron {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin: 0 4px 3px;
+  border-right: 1.5px solid var(--fg-3);
+  border-bottom: 1.5px solid var(--fg-3);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+.daw-panel[open] > .daw-summary .daw-chevron { transform: rotate(225deg); margin-top: 3px; }
+.daw-body { padding: 4px 14px 14px; border-top: 1px solid var(--separator); }
+/* DAWs VEXT does not support yet: greyed out, nothing to edit. */
+.daw-panel.is-unsupported .daw-logo { opacity: 0.45; filter: grayscale(0.6); }
+.daw-panel.is-unsupported .daw-name { color: var(--fg-3); }
 .daw-row .fixed-path-edit .daw-path { flex: 1 1 260px; min-width: 0; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 
 /* ---------- configuration: format folders (rows = format, columns = x32 / x64) ---------- */

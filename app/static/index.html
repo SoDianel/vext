@@ -39,6 +39,7 @@
 <link rel="stylesheet" href="/static/css/playground-signal.css">
 <link rel="stylesheet" href="/static/css/signal-scope.css">
 <link rel="stylesheet" href="/static/css/flsync.css">
+<link rel="stylesheet" href="/static/css/fl-launch.css">
 <link rel="stylesheet" href="/static/css/flsync-check.css">
 <link rel="stylesheet" href="/static/css/config-storage.css">
 <link rel="stylesheet" href="/static/css/fx.css">
@@ -438,6 +439,22 @@
   <section class="panel" id="panel-flsync">
     <div class="fls" id="flsync-root">
       <header class="fls-head" id="flsync-head"></header>
+      <!-- Tools (js/fl-launch.js): the connection visor and the launcher bubble switch. -->
+      <div class="fl-tools" id="fl-tools" aria-label="FL Studio tools">
+        <div class="fl-visor" id="fl-visor" data-state="closed" role="status">
+          <i class="fl-visor-light" aria-hidden="true"></i>
+          <span id="fl-visor-text">FL closed</span>
+          <button type="button" class="fl-visor-setup" id="fl-visor-setup" hidden>Set up</button>
+        </div>
+        <label class="fls-switch fl-bubble">
+          <span class="fls-switch-text">
+            <strong>Show the FL launcher bubble</strong>
+            <span class="fls-sub">Click the bubble for the FL plugin index. Search, browse categories or vendors, then click a preset to load it or drag it into FL.</span>
+            <span class="fls-sub fl-bubble-reason" id="fl-bubble-reason" hidden></span>
+          </span>
+          <input type="checkbox" class="switch" id="fl-bubble-switch" disabled>
+        </label>
+      </div>
       <div class="fls-tabs" role="tablist" aria-label="FL Studio Sync">
         <button type="button" role="tab" class="fls-tab" data-fls-tab="organize" id="fls-tab-organize" aria-controls="flsync-organize" aria-selected="true">Organize</button>
         <button type="button" role="tab" class="fls-tab" data-fls-tab="check" id="fls-tab-check" aria-controls="flsync-check" aria-selected="false">Check &amp; fix <span class="fls-tab-count" id="fls-tab-count" hidden></span></button>
@@ -566,35 +583,97 @@
       </div>
     </div>
 
-    <!-- DAWs: where each DAW lives, and the FL Studio data VEXT reads -->
+    <!-- DAWs: one dropdown per DAW (app.js wireDawPanels). Only FL Studio is supported; the others are placeholders. -->
     <div class="config-pane" data-pane="daws">
-      <div class="subsection first">
-        <h3>FL Studio</h3>
-        <p class="hint">FL Studio is found automatically from the Windows registry; set a folder only if it lives somewhere
-          unusual, or to point at another version. Auto-detect clears your folder and detects again. FL Studio Sync in the
-          sidebar and the FL Cloud options only show while FL Studio is installed.</p>
-        <div class="card-list" id="config-daws"></div>
-      </div>
+      <details class="daw-panel" data-daw="fl">
+        <summary class="daw-summary">
+          <span class="daw-logo"><img src="/static/img/daws/fl.png" alt="" width="40" height="40"></span>
+          <span class="daw-name">FL Studio</span>
+          <span class="badge muted" id="daw-badge-fl">Checking…</span>
+          <span class="daw-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="daw-body">
+          <div class="subsection first">
+            <h3>Install folder</h3>
+            <p class="hint">FL Studio is found automatically from the Windows registry; set a folder only if it lives somewhere
+              unusual, or to point at another version. Auto-detect clears your folder and detects again. FL Studio Sync in the
+              sidebar and the FL Cloud options only show while FL Studio is installed.</p>
+            <div class="card-list" id="config-daws"></div>
+          </div>
 
-      <div class="subsection">
-        <h3>FL Studio plugin database</h3>
-        <p class="hint">Where FL Studio keeps what it knows about each plugin (<code>Presets\Plugin database\Installed</code>).
-          VEXT reads it for the "FL" badge and FL's own plugin names and types, and FL Studio Sync files plugins inside it.
-          Changes take effect on the next scan.</p>
-        <div id="config-daw-settings-list" class="card-list"></div>
-      </div>
+          <div class="subsection">
+            <h3>FL Studio plugin database</h3>
+            <p class="hint">Where FL Studio keeps what it knows about each plugin (<code>Presets\Plugin database\Installed</code>).
+              VEXT reads it for the "FL" badge and FL's own plugin names and types, and FL Studio Sync files plugins inside it.
+              Changes take effect on the next scan.</p>
+            <div id="config-daw-settings-list" class="card-list"></div>
+          </div>
 
-      <div class="subsection">
-        <h3>FL-NATIVE plugin folders</h3>
-        <p class="hint">FL Studio's own stock plugins are scanned from these folders. They follow the FL Studio folder above.</p>
-        <div class="card-list" id="config-fl-native-folders"></div>
-      </div>
+          <div class="subsection">
+            <h3>FL-NATIVE plugin folders</h3>
+            <p class="hint">FL Studio's own stock plugins are scanned from these folders. They follow the FL Studio folder above.</p>
+            <div class="card-list" id="config-fl-native-folders"></div>
+          </div>
 
-      <div class="subsection">
-        <h3>Other DAWs</h3>
-        <p class="hint">Placeholders for future support.</p>
-        <div class="card-list" id="config-future-daws"></div>
-      </div>
+          <div class="subsection">
+            <h3>Controller script</h3>
+            <p class="hint">The VEXT controller lets VEXT load plugins into FL Studio: the launcher bubble sends them through it,
+              and dragging a card into FL needs only a matching FL preset. Installing copies it into FL's user-data folder
+              after you confirm.</p>
+            <div id="fl-controller-root"></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="daw-panel is-unsupported" data-daw="ableton">
+        <summary class="daw-summary">
+          <span class="daw-logo"><img src="/static/img/daws/ableton.svg" alt="" width="40" height="40"></span>
+          <span class="daw-name">Ableton Live</span>
+          <span class="badge muted">Not supported yet</span>
+          <span class="daw-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="daw-body"><p class="hint">VEXT does not work with Ableton Live yet.</p></div>
+      </details>
+
+      <details class="daw-panel is-unsupported" data-daw="cubase">
+        <summary class="daw-summary">
+          <span class="daw-logo"><img src="/static/img/daws/cubase.svg" alt="" width="40" height="40"></span>
+          <span class="daw-name">Cubase</span>
+          <span class="badge muted">Not supported yet</span>
+          <span class="daw-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="daw-body"><p class="hint">VEXT does not work with Cubase yet.</p></div>
+      </details>
+
+      <details class="daw-panel is-unsupported" data-daw="reaper">
+        <summary class="daw-summary">
+          <span class="daw-logo"><img src="/static/img/daws/reaper.svg" alt="" width="40" height="40"></span>
+          <span class="daw-name">REAPER</span>
+          <span class="badge muted">Not supported yet</span>
+          <span class="daw-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="daw-body"><p class="hint">VEXT does not work with REAPER yet.</p></div>
+      </details>
+
+      <details class="daw-panel is-unsupported" data-daw="studioone">
+        <summary class="daw-summary">
+          <span class="daw-logo"><img src="/static/img/daws/studioone.svg" alt="" width="40" height="40"></span>
+          <span class="daw-name">Studio One</span>
+          <span class="badge muted">Not supported yet</span>
+          <span class="daw-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="daw-body"><p class="hint">VEXT does not work with Studio One yet.</p></div>
+      </details>
+
+      <details class="daw-panel is-unsupported" data-daw="bitwig">
+        <summary class="daw-summary">
+          <span class="daw-logo"><img src="/static/img/daws/bitwig.svg" alt="" width="40" height="40"></span>
+          <span class="daw-name">Bitwig Studio</span>
+          <span class="badge muted">Not supported yet</span>
+          <span class="daw-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="daw-body"><p class="hint">VEXT does not work with Bitwig Studio yet.</p></div>
+      </details>
     </div>
 
     <!-- Audio: filled by js/audio-settings.js (VEXT.registerSection('config-audio', ...)) -->
@@ -766,6 +845,8 @@
 <script src="/static/js/fx.js"></script>
 <script src="/static/js/scan-wall.js"></script>
 <script src="/static/js/contextmenu.js"></script>
+<script src="/static/js/fl-preset.js"></script>
+<script src="/static/js/fl-launch.js"></script>
 <script src="/static/js/dashboard.js"></script>
 <script src="/static/js/playground-wave.js"></script>
 <script src="/static/js/playground.js"></script>

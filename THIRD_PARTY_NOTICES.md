@@ -130,6 +130,7 @@ GPL or LGPL; the five MPL-2.0 crates are used unmodified (source on crates.io).
 | [displaydoc](https://crates.io/crates/displaydoc/0.2.7) | 0.2.7 | MIT OR Apache-2.0 |
 | [dom_query](https://crates.io/crates/dom_query/0.28.0) | 0.28.0 | MIT |
 | [dpi](https://crates.io/crates/dpi/0.1.2) | 0.1.2 | Apache-2.0 AND MIT |
+| [drag](https://crates.io/crates/drag/2.1.1) | 2.1.1 | Apache-2.0 OR MIT |
 | [dtoa](https://crates.io/crates/dtoa/1.0.11) | 1.0.11 | MIT OR Apache-2.0 |
 | [dtoa-short](https://crates.io/crates/dtoa-short/0.3.5) | 0.3.5 | MPL-2.0 |
 | [dunce](https://crates.io/crates/dunce/1.0.5) | 1.0.5 | CC0-1.0 OR MIT-0 OR Apache-2.0 |
@@ -299,30 +300,41 @@ GPL or LGPL; the five MPL-2.0 crates are used unmodified (source on crates.io).
 | [webview2-com-sys](https://crates.io/crates/webview2-com-sys/0.39.1) | 0.39.1 | MIT |
 | [winapi-util](https://crates.io/crates/winapi-util/0.1.11) | 0.1.11 | Unlicense OR MIT |
 | [window-vibrancy](https://crates.io/crates/window-vibrancy/0.8.1) | 0.8.1 | Apache-2.0 OR MIT |
+| [windows](https://crates.io/crates/windows/0.52.0) | 0.52.0 | MIT OR Apache-2.0 |
 | [windows](https://crates.io/crates/windows/0.61.3) | 0.61.3 | MIT OR Apache-2.0 |
 | [windows](https://crates.io/crates/windows/0.62.2) | 0.62.2 | MIT OR Apache-2.0 |
 | [windows-collections](https://crates.io/crates/windows-collections/0.2.0) | 0.2.0 | MIT OR Apache-2.0 |
 | [windows-collections](https://crates.io/crates/windows-collections/0.3.2) | 0.3.2 | MIT OR Apache-2.0 |
+| [windows-core](https://crates.io/crates/windows-core/0.52.0) | 0.52.0 | MIT OR Apache-2.0 |
+| [windows-core](https://crates.io/crates/windows-core/0.58.0) | 0.58.0 | MIT OR Apache-2.0 |
 | [windows-core](https://crates.io/crates/windows-core/0.61.2) | 0.61.2 | MIT OR Apache-2.0 |
 | [windows-core](https://crates.io/crates/windows-core/0.62.2) | 0.62.2 | MIT OR Apache-2.0 |
 | [windows-future](https://crates.io/crates/windows-future/0.2.1) | 0.2.1 | MIT OR Apache-2.0 |
 | [windows-future](https://crates.io/crates/windows-future/0.3.2) | 0.3.2 | MIT OR Apache-2.0 |
+| [windows-implement](https://crates.io/crates/windows-implement/0.52.0) | 0.52.0 | MIT OR Apache-2.0 |
+| [windows-implement](https://crates.io/crates/windows-implement/0.58.0) | 0.58.0 | MIT OR Apache-2.0 |
 | [windows-implement](https://crates.io/crates/windows-implement/0.60.2) | 0.60.2 | MIT OR Apache-2.0 |
+| [windows-interface](https://crates.io/crates/windows-interface/0.52.0) | 0.52.0 | MIT OR Apache-2.0 |
+| [windows-interface](https://crates.io/crates/windows-interface/0.58.0) | 0.58.0 | MIT OR Apache-2.0 |
 | [windows-interface](https://crates.io/crates/windows-interface/0.59.3) | 0.59.3 | MIT OR Apache-2.0 |
 | [windows-link](https://crates.io/crates/windows-link/0.1.3) | 0.1.3 | MIT OR Apache-2.0 |
 | [windows-link](https://crates.io/crates/windows-link/0.2.1) | 0.2.1 | MIT OR Apache-2.0 |
 | [windows-numerics](https://crates.io/crates/windows-numerics/0.2.0) | 0.2.0 | MIT OR Apache-2.0 |
 | [windows-numerics](https://crates.io/crates/windows-numerics/0.3.1) | 0.3.1 | MIT OR Apache-2.0 |
+| [windows-result](https://crates.io/crates/windows-result/0.2.0) | 0.2.0 | MIT OR Apache-2.0 |
 | [windows-result](https://crates.io/crates/windows-result/0.3.4) | 0.3.4 | MIT OR Apache-2.0 |
 | [windows-result](https://crates.io/crates/windows-result/0.4.1) | 0.4.1 | MIT OR Apache-2.0 |
+| [windows-strings](https://crates.io/crates/windows-strings/0.1.0) | 0.1.0 | MIT OR Apache-2.0 |
 | [windows-strings](https://crates.io/crates/windows-strings/0.4.2) | 0.4.2 | MIT OR Apache-2.0 |
 | [windows-strings](https://crates.io/crates/windows-strings/0.5.1) | 0.5.1 | MIT OR Apache-2.0 |
 | [windows-sys](https://crates.io/crates/windows-sys/0.60.2) | 0.60.2 | MIT OR Apache-2.0 |
 | [windows-sys](https://crates.io/crates/windows-sys/0.61.2) | 0.61.2 | MIT OR Apache-2.0 |
+| [windows-targets](https://crates.io/crates/windows-targets/0.52.6) | 0.52.6 | MIT OR Apache-2.0 |
 | [windows-targets](https://crates.io/crates/windows-targets/0.53.5) | 0.53.5 | MIT OR Apache-2.0 |
 | [windows-threading](https://crates.io/crates/windows-threading/0.1.0) | 0.1.0 | MIT OR Apache-2.0 |
 | [windows-threading](https://crates.io/crates/windows-threading/0.2.1) | 0.2.1 | MIT OR Apache-2.0 |
 | [windows-version](https://crates.io/crates/windows-version/0.1.7) | 0.1.7 | MIT OR Apache-2.0 |
+| [windows_x86_64_msvc](https://crates.io/crates/windows_x86_64_msvc/0.52.6) | 0.52.6 | MIT OR Apache-2.0 |
 | [windows_x86_64_msvc](https://crates.io/crates/windows_x86_64_msvc/0.53.1) | 0.53.1 | MIT OR Apache-2.0 |
 | [winnow](https://crates.io/crates/winnow/1.0.4) | 1.0.4 | MIT |
 | [writeable](https://crates.io/crates/writeable/0.6.4) | 0.6.4 | Unicode-3.0 |
@@ -359,3 +371,30 @@ programs (the installer runs them; VEXT does not link to their source).
 FL Studio and Image-Line are trademarks of Image-Line Software. VST is a trademark of Steinberg Media
 Technologies GmbH. Waves, CLAP, AAX and every plugin name VEXT shows belong to their owners. VEXT is not
 affiliated with or endorsed by any of them.
+
+## DAW logos
+
+Shown in Configuration > DAWs and the FL Studio launcher bubble (`app/static/img/daws/`). Files are unmodified
+except the SVGs, which were cleaned of scripts, links and editor metadata; the marks themselves are unchanged.
+
+- **FL Studio** (`fl.png`, 1024 x 1024 PNG, unmodified): Image-Line Software. Source:
+  <https://downloads.image-line.com/Press/FLStudio20_MasterIcon.png>, listed on
+  <https://www.image-line.com/high-resolution-images/>. Terms as stated there: may be shared "only for
+  non-competing or press-related purposes"; may not be altered, transformed or built upon; copyright notice
+  must be kept.
+- **Ableton Live** (`ableton.svg`): Ableton AG. Source:
+  <https://upload.wikimedia.org/wikipedia/commons/0/09/Ableton_Live_Logo.svg> (Wikimedia Commons, "Ableton Live
+  Logo.svg"). Commons license field: "Public domain", restriction "trademarked". Ableton's own guidelines
+  (<https://www.ableton.com/en/legal/branding-trademark-guidelines/>) say not to use the Ableton logo in
+  commercial publications.
+- **Steinberg Cubase** (`cubase.svg`): Steinberg Media Technologies GmbH. Source:
+  <https://upload.wikimedia.org/wikipedia/commons/1/1d/Cubase_logo.svg> (Wikimedia Commons, "Cubase logo.svg",
+  vectorised from "Cubase 6 logo.svg"). Commons license field: "Public domain", restriction "trademarked".
+- **REAPER** (`reaper.svg`, wordmark): Cockos Inc. Source:
+  <https://upload.wikimedia.org/wikipedia/commons/4/4a/Reaper_Digital_Audio_Workstation_Wordmark.svg>
+  (Wikimedia Commons). Commons license field: "Public domain", restriction "trademarked".
+- **Bitwig Studio** (`bitwig.svg`): Bitwig GmbH. Source:
+  <https://upload.wikimedia.org/wikipedia/commons/f/fd/Bitwig_Studio_Logo.svg> (Wikimedia Commons, "Bitwig
+  Studio Logo.svg"). Commons license field: "Public domain", restriction "trademarked".
+
+Logos are trademarks of their owners, shown only to identify the DAW; no endorsement implied.

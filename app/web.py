@@ -30,6 +30,7 @@ from app import midi_monitor, sysmem  # the toolbar's metrics
 from app import runtime_check  # Microsoft's C++ runtime: checked at start, Repair
 from app import folder_access  # write access to a protected plugin folder, asked per folder
 from app import playground_audio  # the Playground's Audio tab
+from app import fl_launch, fl_launch_api
 
 app = FastAPI(title="VEXT")
 
@@ -139,6 +140,7 @@ def _row_to_dict(r) -> dict:
 
 
 app.include_router(review.router)
+app.include_router(fl_launch_api.router)
 app.include_router(browser_audio.router)
 
 
@@ -1389,8 +1391,10 @@ def midi_devices():
     except OSError as e:
         raise HTTPException(409, f"Couldn't list the MIDI inputs: {e}")
     opened = plugin_host.open_midi_inputs()
+    with db.connect(DB_PATH) as conn:
+        reserved = db.get_setting(conn, "fl_launch_port", "Vext")
     return {"inputs": inputs, "open": opened["open"] if opened else None,
-            "failed": opened["failed"] if opened else None, "settings": _midi_settings()}
+            "failed": opened["failed"] if opened else None, "settings": _midi_settings(), "reserved": reserved}
 
 
 class FlCloudBody(BaseModel):
@@ -2463,6 +2467,9 @@ _SETTINGS_DEFAULTS = {
     "quarantine_dir": QUARANTINE_DIR,
     # Empty = auto-detect (registry, then the standard folder). Set = the user's own install folder.
     "fl_studio_root": "",
+    "fl_launch_port": "Vext",
+    # 1 = the FL quick launcher bubble is shown (desktop app; only while FL Studio is set up).
+    "fl_bubble_enabled": "0",
     # 1 = after each scan, propose quarantine for copies a better format/bitness supersedes.
     # Proposals only: nothing moves until confirmed in the Actions tab.
     "auto_propose_superseded": "1",
@@ -2516,6 +2523,7 @@ _SETTING_CHOICES = {
     "audio_auto_fade": ("0", "1"),
     "audio_auto_normalize": ("0", "1"),
     "audio_auto_balance": ("0", "1"),
+    "fl_bubble_enabled": ("0", "1"),
     "plugin_memory_limit_gb": tuple(str(g) for g in plugin_host.MEMORY_LIMITS_GB),
 }
 # Settings where empty is a real choice (auto-detect / system default / off).
@@ -2523,7 +2531,7 @@ _SETTINGS_EMPTY_OK = {"fl_studio_root", "audio_output_device", "midi_inputs"}
 # Changing these restarts what the open plugin plays / its MIDI inputs at once.
 _AUDIO_KEYS = {"audio_driver", "audio_output_device", "audio_sample_rate", "audio_block_size", "audio_safe_mode",
                "audio_plugin_buffer"}
-_MIDI_KEYS = {"midi_inputs", "midi_channel", "midi_block_pitchbend"}
+_MIDI_KEYS = {"midi_inputs", "midi_channel", "midi_block_pitchbend", "fl_launch_port"}
 
 
 def _fl_studio_info(conn) -> dict:
@@ -2590,6 +2598,8 @@ def settings_update(key: str, body: SettingUpdate):
     if key in _AUDIO_KEYS:
         threading.Thread(target=plugin_host.apply_audio_settings, daemon=True).start()
     elif key in _MIDI_KEYS:
+        if key == "fl_launch_port":
+            midi_watch.release()  # an unchanged "all inputs" selection must drop the newly reserved port
         threading.Thread(target=plugin_host.apply_midi_settings, daemon=True).start()
         midi_watch.poke()
     return {"ok": True}
@@ -2819,6 +2829,7 @@ def get_logs(after: int = 0):
     previously discarded, see plugin_host._spawn_worker). `after`: only lines
     with a higher seq than this (0 the first call) — poll with the previous
     response's `latest` to tail it live without re-sending what's already shown."""
+    fl_launch.collect_logs()
     lines = logbuf.recent(after)
     return {"lines": lines, "latest": lines[-1]["seq"] if lines else after,
             "last_error": logbuf.status()["last_error"]}
@@ -2827,11 +2838,13 @@ def get_logs(after: int = 0):
 @app.get("/api/logs/status")
 def get_logs_status():
     """{latest, last_error}: cheap enough for the sidebar to poll for its error badge."""
+    fl_launch.collect_logs()
     return logbuf.status()
 
 
 @app.delete("/api/logs")
 def clear_logs():
+    fl_launch.collect_logs()
     logbuf.clear()
     return {"ok": True}
 
@@ -2839,6 +2852,7 @@ def clear_logs():
 @app.get("/api/logs/text")
 def get_logs_text():
     """The whole buffer as plain text (the browser fallback for Export)."""
+    fl_launch.collect_logs()
     return Response(logbuf.as_text(), media_type="text/plain; charset=utf-8",
                     headers={"Content-Disposition": 'attachment; filename="vext-log.txt"'})
 
@@ -2853,6 +2867,7 @@ def export_logs(body: LogExportBody):
     path = Path(body.path)
     if path.suffix.lower() != ".txt":
         raise HTTPException(400, "the log can only be exported as a .txt file")
+    fl_launch.collect_logs()
     try:
         path.write_text(logbuf.as_text(), encoding="utf-8")
     except OSError as e:

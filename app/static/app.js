@@ -739,6 +739,8 @@ async function applyFlStudioPresence(force = false) {
   try { s = await settings(force); } catch { return; }
   document.getElementById('nav-group-daw').hidden = !s.fl_studio_installed;
   if (!s.fl_studio_installed && activeSection === 'flsync') navigate('dashboard');
+  // The launcher bubble follows FL's setup too; this also runs at start (init).
+  if (window.VEXT.flLaunch) window.VEXT.flLaunch.syncBubble();
 }
 
 // ---------- view modes, per section ----------
@@ -850,6 +852,7 @@ let overlayIsOpen = false;
 const overlayOpen = () => !!(document.getElementById('modal-root').childElementCount
   || document.getElementById('confirm-root').childElementCount
   || document.querySelector('#imgsearch-root > *')
+  || document.querySelector('body > .fl-launch-dialog')
   || document.querySelector('body > .cm'));
 // Whether an overlay covers the rectangle r ({x, y, width, height}, window coordinates).
 // Modals, confirmations and the image search fill the window; the context menu only covers
@@ -860,6 +863,7 @@ const overlayCovers = (r) => {
   if (document.getElementById('modal-root').childElementCount
     || document.getElementById('confirm-root').childElementCount
     || document.querySelector('#imgsearch-root > *')) return true;
+  if (document.querySelector('body > .fl-launch-dialog')) return true;
   return [...document.querySelectorAll('body > .cm:not(.is-pending)')].some((m) => (
     m.offsetLeft < r.x + r.width && m.offsetLeft + m.offsetWidth > r.x
     && m.offsetTop < r.y + r.height && m.offsetTop + m.offsetHeight > r.y));
@@ -2805,45 +2809,52 @@ document.getElementById('form-add-scope-path').addEventListener('submit', async 
 const SCAN_FORMATS = ['VST3', 'VST2', 'CLAP', 'AAX', 'WAVES', 'FL-NATIVE'];
 
 // ---------- DAWs (Configuration > DAWs) ----------
-// FL Studio is the only DAW wired up. Empty folder = auto-detect (registry, then
-// Program Files); saving a folder pins it, and the FL Studio plugin rows follow it.
-// The others render the same row but stay disabled until they are supported.
-// Logos are simplified inline marks, so no image files ship with the app.
-const DAW_LOGOS = {
-  fl: `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="9" fill="#f58220"/><circle cx="20" cy="23" r="10.5" fill="#fff"/><circle cx="20" cy="23" r="8" fill="#f58220"/><path d="M20 23V15.5M20 23l6.3-3.6M20 23l6.3 3.6M20 23v7.5M20 23l-6.3 3.6M20 23l-6.3-3.6" stroke="#fff" stroke-width="1.4"/><path d="M20 12.5c0-3 2-5 5.5-5.5-.2 3.2-2.3 5.3-5.5 5.5z" fill="#fff"/></svg>`,
-  ableton: `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="9" fill="#1a1a1a"/><g fill="#fff"><rect x="8" y="9" width="2.6" height="22"/><rect x="13" y="9" width="2.6" height="22"/><rect x="18" y="9" width="2.6" height="22"/><rect x="23" y="9" width="2.6" height="22"/><rect x="8" y="14.7" width="24" height="2.6"/><rect x="8" y="22.7" width="24" height="2.6"/></g></svg>`,
-  cubase: `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="9" fill="#d6001c"/><path d="M27 14.5A9.5 9.5 0 1 0 27 25.5" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>`,
-  reaper: `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="9" fill="#2b2b2b"/><circle cx="20" cy="20" r="11" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M11 20h4l2-6 4 12 2-6h6" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>`,
-  studioone: `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="9" fill="#2a8ff7"/><circle cx="20" cy="20" r="10" fill="none" stroke="#fff" stroke-width="3"/><circle cx="20" cy="20" r="3.5" fill="#fff"/></svg>`,
-  bitwig: `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="9" fill="#ff6a13"/><g fill="#fff"><circle cx="10.5" cy="20" r="2.6"/><circle cx="17.5" cy="20" r="2.6"/><circle cx="24.5" cy="20" r="2.6"/><circle cx="31" cy="20" r="2.6"/></g></svg>`,
-};
+// One dropdown per DAW, laid out in index.html. FL Studio is the only one wired up: its install
+// folder is set here, and its controller setup is mounted by js/fl-launch.js. The open state is
+// remembered per user ('pa-daw-open'); FL starts open.
+const DAW_OPEN_KEY = 'pa-daw-open';
 
-const FUTURE_DAWS = [
-  { key: 'ableton', name: 'Ableton Live' },
-  { key: 'cubase', name: 'Cubase' },
-  { key: 'reaper', name: 'REAPER' },
-  { key: 'studioone', name: 'Studio One' },
-  { key: 'bitwig', name: 'Bitwig Studio' },
-];
+function dawOpenKeys() {
+  try {
+    const v = JSON.parse(localStorage.getItem(DAW_OPEN_KEY));
+    if (Array.isArray(v)) return v;
+  } catch { /* storage unavailable */ }
+  return ['fl'];
+}
 
-function dawRow({ key, name, installed, badgeText, input, status, enabled }) {
-  return `
-    <div class="candidate-card daw-row" data-daw="${key}">
-      <div class="daw-logo">${DAW_LOGOS[key] || ''}</div>
-      <div class="info">
-        <strong>${name}</strong>
-        <span class="badge ${installed ? 'ok' : 'muted'}">${badgeText}</span>
-        <div class="fixed-path-edit">
-          <input type="text" class="daw-path" ${input} ${enabled ? '' : 'disabled'} aria-label="${name} install folder">
-          <button class="primary" data-daw-do="save" ${enabled ? '' : 'disabled'}>Save</button>
-          <button data-daw-do="auto" ${enabled ? '' : 'disabled'}>Auto-detect</button>
-        </div>
-        <div class="path">${status}</div>
-      </div>
-    </div>`;
+function wireDawPanels() {
+  const open = dawOpenKeys();
+  document.querySelectorAll('.daw-panel').forEach(panel => {
+    panel.open = open.includes(panel.dataset.daw);
+    if (panel.dataset.wired) return;
+    panel.dataset.wired = '1';
+    panel.addEventListener('toggle', () => {
+      const keys = [...document.querySelectorAll('.daw-panel')].filter(p => p.open).map(p => p.dataset.daw);
+      try { localStorage.setItem(DAW_OPEN_KEY, JSON.stringify(keys)); } catch { /* storage unavailable */ }
+    });
+  });
+  // A logo that does not load becomes the DAW's first letter, in a tile of the same size.
+  document.querySelectorAll('.daw-logo img').forEach(img => {
+    if (img.dataset.wired) return;
+    img.dataset.wired = '1';
+    const tile = () => {
+      const name = img.closest('.daw-panel').querySelector('.daw-name').textContent.trim();
+      const span = document.createElement('span');
+      span.className = 'daw-tile';
+      span.setAttribute('aria-hidden', 'true');
+      span.textContent = name.charAt(0);
+      img.replaceWith(span);
+    };
+    // A logo that failed before this ran (a missing file) has no load event left to hear.
+    if (img.complete && img.naturalWidth === 0) tile();
+    else img.addEventListener('error', tile, { once: true });
+  });
 }
 
 function loadDaws() {
+  wireDawPanels();
+  // The controller setup (and the FL badge on its panel) is mounted by js/fl-launch.js.
+  if (window.VEXT.flLaunch) window.VEXT.flLaunch.mount();
   return Promise.all([loadFlStudioSetting(), loadFlNativeFolders(), loadConfigSettings('config-daw-settings-list', DAW_SETTINGS)]);
 }
 
@@ -2857,23 +2868,20 @@ async function loadFlStudioSetting() {
     ? 'Using the folder you set.'
     : (via ? `Auto-detected from ${via}.` : '');
 
-  el.innerHTML = dawRow({
-    key: 'fl', name: 'FL Studio', installed: s.fl_studio_installed,
-    badgeText: s.fl_studio_installed ? '✓ Installed' : 'Not found',
-    input: `id="fl-studio-root" value="${escHtml(s.fl_studio_root)}" placeholder="${escHtml(placeholder)}"`,
-    status, enabled: true,
-  });
-  el.querySelector('[data-daw="fl"] [data-daw-do="save"]').onclick =
+  el.innerHTML = `
+    <div class="candidate-card daw-row">
+      <div class="info">
+        <div class="fixed-path-edit">
+          <input type="text" class="daw-path" id="fl-studio-root" value="${escHtml(s.fl_studio_root)}" placeholder="${escHtml(placeholder)}" aria-label="FL Studio install folder">
+          <button class="primary" data-daw-do="save">Save</button>
+          <button data-daw-do="auto">Auto-detect</button>
+        </div>
+        <div class="path">${status}</div>
+      </div>
+    </div>`;
+  el.querySelector('[data-daw-do="save"]').onclick =
     () => saveFlStudioRoot(document.getElementById('fl-studio-root').value.trim());
-  el.querySelector('[data-daw="fl"] [data-daw-do="auto"]').onclick = () => saveFlStudioRoot('');
-
-  const future = document.getElementById('config-future-daws');
-  if (future) {
-    future.innerHTML = FUTURE_DAWS.map(d => dawRow({
-      key: d.key, name: d.name, installed: false, badgeText: 'Not supported yet',
-      input: 'placeholder="Not available yet"', status: 'Reserved for future support.', enabled: false,
-    })).join('');
-  }
+  el.querySelector('[data-daw-do="auto"]').onclick = () => saveFlStudioRoot('');
 }
 
 // FL Studio's own stock plugin folders. Read-only here: they follow the FL Studio folder,
@@ -2901,6 +2909,8 @@ async function saveFlStudioRoot(value) {
     });
     toast(value ? 'FL Studio folder saved.' : 'Back to auto-detect.');
     await Promise.all([loadFlStudioSetting(), loadFlNativeFolders()]);
+    // The folder also decides the controller's path and the FL badge.
+    if (window.VEXT.flLaunch) window.VEXT.flLaunch.mount();
     // Installed or not may have changed with the folder: FL Studio Sync and FL Cloud follow it.
     applyFlStudioPresence();
   } catch (e) { handleActionError(e); }

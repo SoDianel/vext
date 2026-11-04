@@ -509,6 +509,8 @@
   // ---------- load: every time the section is shown ----------
 
   async function load() {
+    // The connection visor and the bubble switch (js/fl-launch.js) refresh on each visit.
+    if (V.flLaunch) V.flLaunch.startSync();
     if (!built) {
       buildHead();
       buildOrganize();

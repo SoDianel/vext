@@ -174,3 +174,73 @@ on every search and read.
 - Not done: Linux/macOS, ARM, an auto-updater (a notify-only check linking to the releases page is the plan, never a
   silent installer), signed builds from CI.
 - Plugins can be 32-bit VST2 only in the 32-bit host; 32-bit VST3/CLAP are not supported.
+
+## FL Studio loading
+
+`app/fl_launch.py` resolves actual FL `.fst` entries (Installed first), shared by click-to-load and
+native outgoing drags (`desktop/src-tauri/src/fl_drag.rs`). The controller source under
+`app/static/fl-controller/` is copied into FL's configured user-data folder only after a destination
+preview and confirmation. `fl_launch_port` is reserved from Playground/toolbar MIDI input ownership.
+Commands use MIDI SysEx request IDs and authenticated request/reply files inside the confirmed VEXT controller folder (the backend keeps connection settings under `<data>/fl-bridge`);
+no second MIDI port is required. Never automatically repeat an unacknowledged load. Browser activation
+is reported as a handoff, not proof that a third-party plugin finished loading. Keep preset format and
+folder ancestry checks: matching a display name alone can select a different plugin.
+
+Click-to-load requires a running FL process and a fresh authenticated controller heartbeat; process detection alone must never enable it.
+
+Click-to-load lives only in the FL bubble's inline index (`fl_bubble.rs`, `fl-bubble.html`,
+`fl-launcher.js`; `specs/2026-11-02-fl-bubble-inline-index.md`). `fl_focus` and `fl_drag_preset` accept
+only the `main` and `fl-bubble` webviews; the bubble may also resize/clip itself and read the cursor.
+There is no separate launcher window. The bubble window has no owner, so destroy it when `main` is
+destroyed or the app never exits. It is shown only while FL Studio is installed and the current
+controller is installed.
+
+FL executes controller scripts without `__file__`; capture the settings path during script initialization, before other controllers change the working directory. Keep build outputs directly in `release/`. Stop running VEXT processes before rebuilding; never create an alternate release output folder.
+
+FL controller callbacks must not write outside their controller folder or use rename/delete APIs. FL can raise `SystemError` for restricted file operations; handle it without repeated callback tracebacks. Controller replies use direct writes; backend readers tolerate partially written JSON.
+
+For Browser descent, expand the selected folder then move Down to its first child. Do not send Right after explicit expansion: FL can toggle the folder closed. Preserve ancestry verification before activation.
+
+Browser tab switches, expansion and collapse rebuild FL?s tree asynchronously. Frame waits must return from OnIdle, not just yield within the same callback. Select Plugins explicitly. Do not collapse folders during caption searches. Previous-node navigation uses FPT_Up (40); next-node navigation uses 1. Bump CONTROLLER_REVISION in both backend and controller when controller behavior changes; require matching revisions in the runtime heartbeat before loading.
+
+Browser reset closes only the selected ancestor branch in one bounded Left burst, then settles once. Parent verification must not add toggleBrowserNode(0) after Left; Left may already collapse and ascend. Handle collapse-in-place with a bounded second Left and retain expected/observed folder diagnostics.
+
+Click-to-load must invoke the main-webview-only native fl_focus handoff after confirmation and before sending MIDI. Validate the FL executable and foreground HWND; never force focus with injected keys or thread attachment. Stop if focus is denied. Direct Browser navigation can work while VEXT is foreground even when generic Left/Enter does not. Controller revision 8 also checks Browser focus before verification/activation.
+
+During the maintainer-authorized script-only test, wire revision 8 stays compatible with the running backend; SCRIPT_BUILD identifies controller-only patches. Standard Installed paths validate folder sequence and node types during forward descent, reject section/format boundary crossings, stop leaf searches at folder boundaries, and require SBN_FST before activation. They must not walk back with Left after finding the preset. Generic filed/manual presets retain the conservative fallback. The running extracted script reference may be patched alongside the installed script for this local test only; packaged release artifacts remain unchanged until a requested rebuild.
+
+FL controller diagnostics use an authenticated bounded diagnostics.json snapshot in the controller folder. Import new events once into logbuf (including traceback/context), redact the bridge secret, and keep Log clearing effective across polls. Log endpoints collect diagnostics without requiring the FL setup page to be open. Controller protocol revision 9 adds this forwarding.
+
+SVGElement does not reflect HTMLElement.hidden: toggle the SVG hidden attribute explicitly, or
+[hidden] keeps the radial menu invisible even after assigning svg.hidden = false.
+FL bubble transitions keep the collapsed circle painted until native resize succeeds. Do not render
+expanded coordinates in the 72 px viewport or wait for menu HTTP before tracking the pointer. Resize
+on the window thread without holding the state mutex. Paint the SVG gap with a nonzero palette alpha
+for native WebView2 hit-testing; DOM pointer-events alone does not paint transparent pixels.
+
+The FL index's source is real .fst files in the configured Plugin database's Installed
+Effects/Generators format folders only, including entries without catalog rows. The user-filed
+Effects/Generators trees are FL's copies of the same presets: never list them, and key-based load/drag
+reject filed keys. Catalog metadata only enriches verified binary/manual-link matches; never identify a
+preset from a display-name guess. Key-based load and drag revalidate scope, .fst existence and known
+quarantine/corruption. The VEXT center is draggable open or closed; persist user moves. Only the index
+header's status pill carries connection colors. SVG hidden attribute rules still apply.
+Index pictures, in order: the Installed preset's own Bitmap/PNG, the verified catalog picture, then the
+single filed copy's PNG with the same section and stem (ambiguous stems get none). Pictures are
+presentation only: they never identify, list or load a preset (`specs/2026-11-03-fl-index-pictures.md`).
+
+FL bubble hover must not resize/reposition the HWND or swap the logo element. The bubble has one
+fixed canvas (index panel + circle, capped to the work area) clipped by SetWindowRgn: a 72 px ellipse
+when closed, ellipse OR the panel's round rect when open. Windows owns a successfully applied HRGN.
+Full-surface transparency alone must not intercept the desktop around the closed bubble. Refit canvas
+and panel side after native dragging, preserving the screen anchor. Listing snapshots/digests cache
+presentation only; key-based loading/dragging must still revalidate files and quarantine. Snapshots are
+stamped with the per-launch token and expire; they must not enable loading while disconnected.
+
+Hover (200 ms) or click on the bubble opens the complete FL preset index inside the bubble frame. It
+closes 400 ms after the pointer leaves the circle and panel, on its close button or Escape, but never
+during a native preset drag or a bubble drag. Shrink the native region before hiding the panel. A drag
+release must not open the index. Category/Vendor rows, type scope, text search and the icon-only
+Cards/List/Compact views filter the same full FST snapshot locally; changing a group must not start a
+new filesystem scan. Keep the sidebar list visible (no dropdowns), preserve exact-key load/drag in every
+view, and retain per-launch snapshot and confirmation validation.

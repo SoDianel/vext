@@ -31,6 +31,19 @@ $desktop = Join-Path $root "desktop"
 $tauriDir = Join-Path $desktop "src-tauri"
 $release = Join-Path $root "release"
 
+# The maintainer authorizes stopping VEXT from this checkout before a rebuild.
+function Stop-WorkspaceVext {
+    $workspacePrefix = [IO.Path]::GetFullPath($root).TrimEnd('\') + '\'
+    $workspaceVext = Get-CimInstance Win32_Process -Filter "Name = 'VEXT.exe' OR Name = 'vext-backend.exe'" |
+        Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($workspacePrefix, [StringComparison]::OrdinalIgnoreCase) }
+    foreach ($vextProcess in $workspaceVext) {
+        Write-Host "==> Closing workspace VEXT process $($vextProcess.ProcessId)"
+        Stop-Process -Id $vextProcess.ProcessId -Force -ErrorAction SilentlyContinue
+        Wait-Process -Id $vextProcess.ProcessId -Timeout 15 -ErrorAction SilentlyContinue
+    }
+}
+Stop-WorkspaceVext
+
 # Native tools write progress to stderr. Under $ErrorActionPreference = "Stop"
 # PowerShell turns that into a terminating error, so run them through cmd and
 # judge success by exit code only.
@@ -114,6 +127,7 @@ New-Item -ItemType Directory -Force -Path $release | Out-Null
 # Check the absolute destination before recursively clearing build output.
 $release = [IO.Path]::GetFullPath($release)
 if ($release -ne [IO.Path]::GetFullPath((Join-Path $root "release"))) { throw "Unexpected release directory" }
+Stop-WorkspaceVext
 Get-ChildItem $release -Force | Remove-Item -Recurse -Force
 
 $setupName = "VEXT-$version-setup.exe"
