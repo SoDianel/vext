@@ -253,6 +253,15 @@ cancel it. The run retains a `VEXT-windows-<commit>-<run>-<attempt>` artifact fo
 CI builds are unsigned. The local build still supports the signing variables described above. Actions
 artifacts expire; assets attached to a GitHub Release remain until explicitly removed.
 
+**Version policy.** Until the official release is announced, all work is version 1.0.0. Keep the version at
+1.0.0 everywhere (`tauri.conf.json`, `package.json`, `Cargo.toml`), add user-visible changes to the `[1.0.0]`
+section of `CHANGELOG.md` (describe the final state, not the fixes along the way) and leave `[Unreleased]`
+empty. The draft `v1.0.0` release is rebuilt from `main` (delete the draft, then dispatch **Draft release**),
+never versioned up. Only after the announcement does the next change start `[Unreleased]` and need
+`bump_version.ps1`.
+
+After 1.0.0 is announced, a release goes like this (the examples use 1.1.0):
+
 1. Add user-visible changes under `[Unreleased]` in `CHANGELOG.md` on a topic branch.
 2. Run `.\tools\bump_version.ps1 -Version 1.1.0` (`-DryRun` previews changes). It updates the Tauri, npm
    and Cargo manifests and locks, dates the changelog section and updates comparison links.
