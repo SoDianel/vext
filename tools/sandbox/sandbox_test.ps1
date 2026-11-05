@@ -5,6 +5,7 @@
 #   2. VEXT's backend starts and reports the runtime as ok
 #   3. a real plugin (Xfer OTT, mapped read-only from the host) loads and
 #      processes audio in VEXT's plugin host
+#   4. VEXT.exe opens its window (WebView2 found; a screenshot is saved as app-window.png)
 # Results: C:\results\result.json and log.txt (the host's tools\sandbox\results).
 
 $ErrorActionPreference = "Continue"
@@ -100,7 +101,50 @@ if ($backend) {
     }
 }
 
-$ok = ($result.setup_exit -eq 0) -and $result.runtime_check -and $result.runtime_check.ok -and ($result.probe_exit -eq 0) -and ($result.second_install_would_run.Count -eq 0) -and $result.runtime_check.legacy.'2013' -and $result.runtime_check.legacy.'2012' -and $result.runtime_check.legacy.'2010'
+# 4. The app itself: VEXT.exe opens its window (it needs WebView2; the Sandbox ships the runtime's files
+#    without the registry entry, which once left every install with "Could not find the WebView2 Runtime").
+$result.app_window_ok = $false
+$app = if ($backend) { Join-Path $backend.DirectoryName "VEXT.exe" } else { "" }
+if ($app -and (Test-Path $app)) {
+    # Point the WebView2 loader at the runtime's files when the registry has no entry for them. This lives
+    # here, not in VEXT.exe: an app that probes EdgeUpdate's keys through a hidden reg.exe and redirects its
+    # browser executable was flagged by Defender's ML (Trojan:Win32/Bearfoos.A!ml) and quarantined.
+    $registered = @("HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+        "HKCU:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}") |
+        Where-Object { (Get-ItemProperty $_ -Name pv -ErrorAction SilentlyContinue).pv -notin @($null, "", "0.0.0.0") }
+    if (-not $registered -and -not $env:WEBVIEW2_BROWSER_EXECUTABLE_FOLDER) {
+        $folder = Get-ChildItem "${env:ProgramFiles(x86)}\Microsoft\EdgeWebView\Application", "$env:LOCALAPPDATA\Microsoft\EdgeWebView\Application" `
+            -Directory -ErrorAction SilentlyContinue | Where-Object { Test-Path (Join-Path $_.FullName "msedgewebview2.exe") } |
+            Sort-Object { try { [version]$_.Name } catch { [version]"0.0" } } -Descending | Select-Object -First 1
+        if ($folder) {
+            $env:WEBVIEW2_BROWSER_EXECUTABLE_FOLDER = $folder.FullName
+            Say "WebView2 not registered: using $($folder.FullName)"
+        }
+    }
+    Say "Starting $app"
+    $vext = Start-Process -FilePath $app -PassThru
+    for ($i = 0; $i -lt 40 -and -not $result.app_window_ok; $i++) {
+        Start-Sleep -Seconds 1
+        $main = Get-Process -Name VEXT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq "VEXT" } | Select-Object -First 1
+        $views = @(Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue).Count
+        if ($main -and $views -gt 0) { $result.app_window_ok = $true }
+    }
+    $titles = @(Get-Process -Name VEXT -ErrorAction SilentlyContinue | ForEach-Object { $_.MainWindowTitle } | Where-Object { $_ })
+    $result.app_window_titles = $titles
+    Say "App window ok: $($result.app_window_ok); window titles: $($titles -join ' | '); webview2 processes: $views"
+    try {
+        Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+        $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+        $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+        [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+        $bmp.Save((Join-Path $out "app-window.png"))
+    } catch { Say "Screenshot failed: $_" }
+    Get-Process -Name VEXT, vext-backend, msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+} else {
+    Say "VEXT.exe not found next to the backend: window check failed"
+}
+
+$ok = $result.app_window_ok -and ($result.setup_exit -eq 0) -and $result.runtime_check -and $result.runtime_check.ok -and ($result.probe_exit -eq 0) -and ($result.second_install_would_run.Count -eq 0) -and $result.runtime_check.legacy.'2013' -and $result.runtime_check.legacy.'2012' -and $result.runtime_check.legacy.'2010'
 $result.verdict = if ($ok) { "PASS" } else { "FAIL" }
 Say "Verdict: $($result.verdict)"
 $result | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $out "result.json") -Encoding utf8

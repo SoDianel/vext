@@ -23,7 +23,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app import actions, ai_agents, ai_batch, analysis_tap, applog, browser_audio, browser_record, codex_research, db, dedup, fl_reorganize, logbuf, pictures, plugin_host, registry_scan, review, security, vendor_org
 from app.config import DB_PATH, FL_PLUGIN_DB_ROOT, PROJECT_ROOT, QUARANTINE_DIR
 from app.config import FIXED_LOCATION_KEYS
-from app import scan_service, storage  # storage: Configuration > Storage
+from app import metadata_archive, scan_service, storage  # storage: Configuration > Storage; metadata_archive: Database > Metadata
 from app.scan_service import run_scan
 from app import audio_setup, host_worker  # Configuration > Audio, MIDI
 from app import midi_monitor, sysmem  # the toolbar's metrics
@@ -50,6 +50,13 @@ def _install_log_buffer():
                                   "repaired (the warning at the top of the window has a Repair button).", "error")
     except Exception as e:  # noqa: BLE001 - a check must never stop the backend
         logbuf.add("backend", f"Couldn't check the Visual C++ runtime: {e}", "warning")
+
+
+@app.on_event("startup")
+def _reset_playground_audio():
+    # Before anything restores the Audio tab: the last session's file and its files go, so even after
+    # a crash or a kill the Playground starts empty.
+    playground_audio.reset_session()
 
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -517,6 +524,12 @@ def _stop_midi_monitor():
     midi_watch.shutdown()
 
 
+@app.on_event("shutdown")
+def _reset_playground_audio_at_shutdown():
+    # Best effort: a file a plugin worker still holds open stays until the next start (startup resets too).
+    playground_audio.reset_session()
+
+
 @app.get("/api/midi/activity")
 def midi_activity(since: int = 0):
     """The toolbar's MIDI indicator: the messages after `since` (the seq the page
@@ -812,23 +825,27 @@ async def analysis_stream(ws: WebSocket, token: str = ""):
 
 class BrowserRecordBody(BaseModel):
     on: bool
+    source: str = "browser"  # "browser": what the browser plays; "signal": the Signal tab's file through the plugin
 
 
 @app.get("/api/playground/browser-record")
 def pg_browser_record_state():
     """{on, seconds, frames, rate, peak (linear, since the last GET), through (the plugin
-    the sound went through, else null), error, pending}."""
+    the sound went through, else null), error, pending, source}."""
     return browser_record.status(take_peak=True)
 
 
 @app.post("/api/playground/browser-record")
 def pg_browser_record(body: BrowserRecordBody):
-    """on: starts recording what the browser plays. off: stops, and opens the recording as
-    the Audio tab's file (replacing the one loaded): the status plus {"audio": <Audio tab state>}.
-    409 when it already records / doesn't / nothing was recorded."""
+    """on: starts recording (source browser: what the browser plays; signal: the Signal tab's
+    file as it comes out of the plugin). off: stops, and opens the recording as the Audio tab's
+    file (replacing the one loaded): the status plus {"audio": <Audio tab state>}.
+    400 for an unknown source; 409 when it already records / doesn't / nothing was recorded."""
+    if body.source not in ("browser", "signal"):
+        raise HTTPException(400, "The source is browser or signal.")
     try:
         if body.on:
-            return browser_record.start()
+            return browser_record.start(body.source)
         done = browser_record.stop()
     except browser_record.RecordError as e:
         raise HTTPException(409, str(e))
@@ -979,27 +996,6 @@ def pg_audio_recording_file(request: Request):
 
 class SignalBody(BaseModel):
     patch: object = None  # the Signal tab's patch (signal_gen.clean_patch: any other value is a 409)
-
-
-class WavetableBody(BaseModel):
-    path: str  # a WAV file: imported as a user wavetable
-
-
-@app.get("/api/playground/signal/tables")
-def pg_signal_tables():
-    """The wavetables the oscillators can read: the built-in ones, then the user's."""
-    from app import signal_gen
-    return {"tables": signal_gen.tables()}
-
-
-@app.post("/api/playground/signal/wavetable")
-def pg_signal_wavetable(body: WavetableBody):
-    """Imports a WAV as a user wavetable (cache/playground/wavetables); answers the table list."""
-    from app import signal_gen
-    try:
-        return {"tables": signal_gen.import_wavetable(body.path)}
-    except ValueError as e:
-        raise HTTPException(409, str(e))
 
 
 @app.post("/api/playground/signal")
@@ -1667,14 +1663,21 @@ def edit_plugin_categories(plugin_id: int, body: CategoriesEdit):
 
 
 @app.get("/api/categories")
-def list_categories():
+def list_categories(include_orphans: int = 0):
+    """include_orphans=1 adds the owner-added categories no plugin uses (kept in the metadata archive), marked
+    orphan=true. The plugin editor leaves the flag off: it must never offer those."""
     with db.connect(DB_PATH) as conn:
         conn.row_factory = None
         rows = conn.execute(
             "SELECT slug, name, string_value, description, source_url, id, source FROM categories ORDER BY name"
         ).fetchall()
-    return [{"slug": r[0], "name": r[1], "string_value": r[2], "description": r[3], "source_url": r[4],
-             "id": r[5], "source": r[6]} for r in rows]
+        out = [{"slug": r[0], "name": r[1], "string_value": r[2], "description": r[3], "source_url": r[4],
+                "id": r[5], "source": r[6]} for r in rows]
+        if include_orphans:
+            for r in out:
+                r["orphan"] = False
+            out += metadata_archive.orphan_rows(conn, "category")
+    return out
 
 
 class CategoryCreate(BaseModel):
@@ -1722,10 +1725,15 @@ class VendorCreate(BaseModel):
 
 
 @app.get("/api/reference/vendors")
-def list_reference_vendors():
+def list_reference_vendors(include_orphans: int = 0):
+    """include_orphans=1 adds the vendors no plugin uses that VEXT kept research for, marked orphan=true."""
     with db.connect(DB_PATH) as conn:
-        rows = db.list_vendors_reference(conn)
-    return [_row_to_dict(r) for r in rows]
+        out = [_row_to_dict(r) for r in db.list_vendors_reference(conn)]
+        if include_orphans:
+            for r in out:
+                r["orphan"] = False
+            out += metadata_archive.orphan_rows(conn, "vendor")
+    return out
 
 
 @app.post("/api/reference/vendors")
@@ -3140,6 +3148,38 @@ def storage_clear(body: StorageClear):
         applog.log_event("Storage cleared: " + ", ".join(
             f"{r['key']} {r['freed'] / 1048576:.1f} MB ({r['files']} files, {r['left']} in use)" for r in result["results"]))
         return {**result, "now": storage.measure(root)}
+
+
+# ---------- Database > Metadata (app/metadata_archive.py) ----------
+
+@app.get("/api/metadata")
+def metadata_list():
+    """Every row of the Metadata pane: installed plugins' data and what is kept with no plugin behind it."""
+    with db.connect(DB_PATH) as conn:
+        return metadata_archive.listing(conn)
+
+
+@app.get("/api/metadata/orphans")
+def metadata_orphans():
+    """Researched data VEXT keeps with no installed plugin (or used vendor) behind it."""
+    with db.connect(DB_PATH) as conn:
+        return metadata_archive.orphans(conn)
+
+
+class MetadataClear(BaseModel):
+    ids: list[str] = []
+
+
+@app.post("/api/metadata/clear")
+def metadata_clear(body: MetadataClear):
+    """Clears the picked items for good; answers the new list too."""
+    with db.connect(DB_PATH) as conn:
+        try:
+            done = metadata_archive.clear(conn, body.ids)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        applog.log_event("Metadata cleared: " + ", ".join(f"{v} {k}" for k, v in done.items() if v))
+        return {"cleared": done, "now": metadata_archive.listing(conn)}
 
 
 @app.post("/api/fl-sync/resize-pictures")

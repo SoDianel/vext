@@ -250,25 +250,29 @@ def recording_path() -> str | None:
     return str(CACHE_DIR / f"recording-{token}.wav") if token else None
 
 
-def _cleanup(keep: set) -> None:
-    """Deletes the cache's older decoded copies and recordings (ones still open
-    by a worker are left for next time)."""
+TEMP_PREFIXES = ("source-", "recording-", "upload-", "heard-")  # decoded copies, recordings, uploads
+RESET_NAMES = ("state.json", "state.tmp", "captures", "signals", "wavetables")  # only at a reset
+
+
+def _cleanup(keep: set, reset: bool = False) -> None:
+    """Deletes the cache's older decoded copies and recordings (ones still open by a worker are left
+    for next time). At a reset also the state file, the captures, the rendered signals and the old
+    wavetables. Nothing outside the cache folder is ever touched."""
     try:
         names = os.listdir(CACHE_DIR)
     except OSError:
         return
     for name in names:
-        if name in keep or name == STATE_FILE.name:
+        if name in keep or not (name.startswith(TEMP_PREFIXES) or (reset and name in RESET_NAMES)):
             continue
-        if name.startswith(("source-", "recording-", "upload-", "heard-")):
-            target = CACHE_DIR / name
-            try:
-                if target.is_dir():
-                    shutil.rmtree(target)
-                else:
-                    target.unlink()
-            except OSError:
-                pass
+        target = CACHE_DIR / name
+        try:
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
+        except OSError:
+            pass
 
 
 def open_file(path: str, name: str | None = None) -> dict:
@@ -425,7 +429,9 @@ def _restore() -> None:
             _recording.mark(0, _recording.frames)
 
 
-def unload() -> dict:
+def _empty() -> None:
+    """The Audio tab back to nothing loaded: cancels a decode, forgets the file, its edits and the
+    recording, and deletes the state file (the files themselves are left to the caller)."""
     global _source, _recording
     with _lock:
         if _job["cancel"]:
@@ -439,8 +445,24 @@ def unload() -> dict:
             STATE_FILE.unlink()
         except OSError:
             pass
+
+
+def unload() -> dict:
+    _empty()
     _cleanup(set())
     return state()
+
+
+def reset_session() -> None:
+    """Startup and shutdown (app/web.py): the Audio tab starts empty and VEXT's files under the cache
+    folder go, so nothing from the last session comes back, even after a crash. Files a worker still
+    holds open (Windows won't delete them) are left for the next start. Best effort: never raises.
+    The user's own audio file is never touched: only VEXT's copies under the cache folder go."""
+    global _restored
+    with _lock:
+        _restored = True  # _restore() must not bring the saved file back after this
+    _empty()
+    _cleanup(set(), reset=True)
 
 
 def state() -> dict:

@@ -42,6 +42,7 @@
 <link rel="stylesheet" href="/static/css/fl-launch.css">
 <link rel="stylesheet" href="/static/css/flsync-check.css">
 <link rel="stylesheet" href="/static/css/config-storage.css">
+<link rel="stylesheet" href="/static/css/database-metadata.css">
 <link rel="stylesheet" href="/static/css/fx.css">
 <link rel="stylesheet" href="/static/css/toolbar-metrics.css">
 </head>
@@ -215,16 +216,17 @@
     </div>
   </section>
 
-  <!-- Database: reference data (categories / vendors / plugin types). Search, filters and order work
-       like Scan's; app.js (reference data) fills it and applies them in the page. -->
+  <!-- Database: reference data (categories / vendors). Search and filters work like Scan's; app.js
+       (reference data) fills it and applies them in the page. -->
   <section class="panel" id="panel-database">
-    <p class="hint">Reference data exists only while plugins use it. Anything no plugin uses is removed at the end of
-      each scan, and comes back the next time a plugin needs it. A vendor is one entity shared by all its
-      plugins: edit its name, website and status here, and every plugin from that vendor follows.</p>
+    <p class="hint">A vendor is one entity shared by all its plugins: edit its name, website and status here, and
+      every plugin from that vendor follows. When no plugin uses a vendor or a category you made any more, what was
+      researched about it is kept (marked "No plugin") and comes back with the next plugin that needs it.
+      Metadata lists everything VEXT knows about your plugins, installed or not.</p>
     <div class="segmented" id="reference-tabs" role="tablist" aria-label="Reference data">
       <button data-ref-pane="categories" class="active" role="tab">Categories</button>
       <button data-ref-pane="vendors" role="tab">Vendors</button>
-      <button data-ref-pane="types" role="tab">Plugin types</button>
+      <button data-ref-pane="metadata" role="tab">Metadata</button>
     </div>
 
     <div class="browse-sticky" id="db-sticky">
@@ -245,17 +247,14 @@
           <option value="no-equipboard">Equipboard missing</option>
           <option value="complete">All links set</option>
         </select>
+        <select id="db-f-orphan" aria-label="Plugin link">
+          <option value="">All entries</option>
+          <option value="with">With plugins</option>
+          <option value="orphan">No plugin</option>
+        </select>
       </div>
       <div class="browse-bar">
         <p class="hint"><span class="browse-count" id="db-count"></span>Click a column header to sort.</p>
-        <div class="browse-bar-end">
-          <div class="browse-sort">
-            <select id="db-sort-key" aria-label="Sort by"></select>
-            <button type="button" class="browse-sort-dir" id="db-sort-dir" aria-label="Ascending order" title="Ascending order">
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 13V3M4.5 6.5 8 3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -277,13 +276,10 @@
       </div>
     </div>
 
-    <div class="subsection ref-pane" data-ref-pane="types">
-      <h3>Plugin types</h3>
-      <p class="hint">Fixed: every plugin is either an effect or a synth. Types can't be added or changed; pick a plugin's type in its details.</p>
-      <div class="table-wrap">
-      <table><thead><tr><th data-key="name">Name</th><th data-key="description">Description</th><th data-key="source">Source</th></tr></thead>
-        <tbody id="ref-types-tbody"></tbody></table>
-      </div>
+    <!-- Metadata: researched data kept for plugins and vendors that are gone, given back when they return
+         (app/metadata_archive.py, js/database-metadata.js). -->
+    <div class="subsection ref-pane" data-ref-pane="metadata">
+      <div id="db-metadata-root"></div>
     </div>
   </section>
 
@@ -859,6 +855,7 @@
 <script src="/static/js/playground-signal.js"></script>
 <script src="/static/js/flsync-check.js"></script>
 <script src="/static/js/flsync.js"></script>
+<script src="/static/js/database-metadata.js"></script>
 <script src="/static/js/config-storage.js"></script>
 <script src="/static/js/analyzer.js"></script>
 <script src="/static/js/audio-settings.js"></script>

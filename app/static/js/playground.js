@@ -1,5 +1,5 @@
-// Playground: try a plugin on real sound. Two tabs at the top of the same card,
-// each the sound source while it's shown (source 'browser' | 'file'):
+// Playground: try a plugin on real sound. Three tabs at the top of the same card, Browser | Signal | Audio,
+// each the sound source while it's shown (source 'browser' | 'file'; Signal and Audio are both 'file'):
 //  - Browser (the default): a full web browser inside VEXT. It is a native
 //    webview that the desktop shell lays over the rectangle this page reserves
 //    for it (browser_place). Whatever plays on the page is captured by the
@@ -13,8 +13,10 @@
 //    Normalize / Undo (non-destructive: the worker applies them as a gain
 //    envelope); below it the recording of what comes out of the plugin (Record),
 //    which plays back without the plugin, saves as a WAV, or clears.
-//    The Browser tab can also record the browser's sound into the Audio tab (the
-//    Record button in its deck row, backend app/browser_record.py).
+//  - Signal: test signals (js/playground-signal.js) rendered to a file, played and
+//    recorded like the Audio tab's file. Its Record (the deck row, as the Browser's)
+//    records what comes out of the plugin into the Audio tab (backend app/browser_record.py).
+//    The Browser tab's Record does the same for the browser's sound.
 //  The analyzers live in their own section (Analyzer, js/analyzer.js). This module
 //  feeds it what plays in the page (the in-page tap below) and exports V.playground
 //  (hasFile / isPlaying / toggle / stop / describe) so the Analyzer can play and
@@ -258,7 +260,7 @@
   let bLoopAuto = false;           // switched on by making a selection (clearing it switches it off again)
 
   // Recording the browser into the Audio tab (the Browser tab's Record button).
-  const brec = { on: false, busy: false, stopping: false, seconds: 0, peak: 0, through: null, timer: null };
+  const brec = { on: false, source: 'browser', busy: false, stopping: false, seconds: 0, peak: 0, through: null, timer: null };
 
   // The in-page tap for the Analyzer: recEl and cmpEl go through one AudioContext (their M mutes are
   // its gains) and an AudioWorklet posts what plays to VEXT.audioBus while the Analyzer listens.
@@ -822,6 +824,9 @@
     if (kind === 'signal') kind = 'file';
     if (kind !== 'browser' && kind !== 'file') return;
     if (kind === 'browser' && !hasShell()) return;
+    // Leaving the tab that records ends its recording (the Browser's, or the Signal's), whichever tab it goes to.
+    const dest = kind === 'browser' ? 'browser' : view === 'signal' ? 'signal' : 'audio';
+    if (brec.on && dest !== brec.source) stopBrowserRecord('', false); // the user went elsewhere: no tab switch
     if (kind === source) {
       if (kind === 'file' && view !== fileView) {
         fileView = view;
@@ -835,7 +840,6 @@
     fileView = view;
     notice = '';
     try { localStorage.setItem(TAB_KEY, kind === 'file' && view === 'signal' ? 'signal' : kind); } catch { /* storage unavailable */ }
-    if (kind === 'file' && brec.on) stopBrowserRecord(); // it records the Browser tab: leaving it ends the recording
     // Browser and Audio never play together: what plays in the tab being left pauses.
     if (kind === 'file') pauseBrowserMedia();
     else if (recElPlaying() || (cmpEl && !cmpEl.paused)) pausePlayback(); // the page's players: Play goes on from there
@@ -853,20 +857,35 @@
     if (kind === 'file') loadAudio();
   }
 
-  // ---------- recording the browser into the Audio tab ----------
-  // The Browser tab's Record button. The backend (app/browser_record.py) records what the browser plays
-  // (after the open plugin, if there is one) into a WAV; stopping opens it as the Audio tab's file.
+  // ---------- recording into the Audio tab (the Browser's and the Signal's Record) ----------
+  // The Record button of the Browser tab (brec.source 'browser') and of the Signal tab ('signal'). The
+  // backend (app/browser_record.py) records what comes out of the open plugin (the browser's sound, or
+  // the signal file played through it) into a WAV; stopping opens it as the Audio tab's file.
 
-  const brecBlocker = () => (isOpen() && host.is_instrument
-    ? 'An instrument doesn\'t take the browser\'s sound: close it to record the browser.' : '');
+  // The tab whose Record shows: the one recording, else the tab shown ('signal' or 'browser').
+  const brecTab = () => (brec.on ? brec.source : source === 'file' && fileView === 'signal' ? 'signal' : 'browser');
+
+  // Why Record can't start (or ''). The browser's needs no instrument; a signal needs a rendered signal,
+  // a plugin that takes a file, and the Audio tab's own recording off.
+  function brecBlocker(tab = 'browser') {
+    if (tab === 'signal') {
+      if (!signalHost.fileIsSignal()) return 'Render a signal first.';
+      if (host && host.recording) return 'The Audio tab\'s recording is on: stop it first.';
+      return recordBlocker();
+    }
+    return isOpen() && host.is_instrument
+      ? 'An instrument doesn\'t take the browser\'s sound: close it to record the browser.' : '';
+  }
 
   function renderBrec() {
     if (!els || !els.brec) return;
     const on = brec.on;
-    const why = on ? '' : brecBlocker();
+    const tab = brecTab();
+    const why = on ? '' : brecBlocker(tab);
     const through = !on && isOpen() && !host.is_instrument ? ` (after ${pluginName(selectedId)})` : '';
+    const what = tab === 'signal' ? 'Record the signal' : 'Record what plays in the browser';
     const title = on ? 'Stop recording: it becomes the Audio tab\'s file'
-      : why || `Record what plays in the browser into the Audio tab${through}`;
+      : why || `${what} into the Audio tab${through}`;
     const off = !on && (!!why || brec.busy);
     const html = `<button type="button" class="pg-rbtn pg-rec${on ? ' is-on' : ''}" data-act="brec" aria-pressed="${on}"
         title="${esc(title)}"${off || brec.stopping ? ' disabled' : ''}>${ICON.record}<span>${on ? `<span class="pg-brec-time">${fmtTime(brec.seconds)}</span>` : 'Record'}</span></button>` +
@@ -919,19 +938,22 @@
     });
   }
 
-  async function startBrowserRecord() {
-    if (brec.on || brec.busy || brecBlocker()) return;
+  async function startBrowserRecord(tab = 'browser') {
+    if (brec.on || brec.busy || brecBlocker(tab)) return;
     brec.busy = true;
     renderBrec();
     try {
       // The recording replaces the Audio tab's file (and the recording after the plugin that goes with it).
-      if (file || (audio && audio.status === 'decoding')) {
+      // A signal's own file is the one that plays: its recording replaces it on Stop, no question asked here.
+      const replaces = (file || (audio && audio.status === 'decoding')) && !(tab === 'signal' && signalHost.fileIsSignal());
+      if (replaces) {
         const name = (audio && audio.name) || (file && file.name) || 'the file';
         const ok = await V.confirmDialog(`Recording replaces ${name} in the Audio tab (and its recording after the plugin). Record anyway?`);
         if (!ok) return;
       }
-      // An open plugin changes what is recorded: the browser's sound after it.
-      if (isOpen() && !host.is_instrument) {
+      // An open plugin changes what the browser's recording is: the browser's sound after it (no hint for a
+      // signal: it always goes through the plugin, that is the point).
+      if (tab === 'browser' && isOpen() && !host.is_instrument) {
         let hint = true;
         try { hint = localStorage.getItem(BREC_HINT_KEY) !== 'off'; } catch { /* storage unavailable: ask */ }
         if (hint) {
@@ -943,15 +965,22 @@
         }
       }
       const st = await V.api('/api/playground/browser-record', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: true }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: true, source: tab }),
       });
       brec.on = true;
+      brec.source = tab;
       brec.seconds = num(st && st.seconds) || 0;
       brec.peak = 0;
       brec.through = (st && st.through) || null;
       brecSchedule();
+      // A signal records what comes out of the plugin while the file plays through it: start it (as Record does).
+      if (tab === 'signal') {
+        stopRecEl();
+        if (!audioActive() || host.dry) { playFrom = sel ? sel.a : cursor; await startPlayback(playFrom); }
+        else if (phase() === 'paused') await resumePlayback();
+      }
     } catch (err) {
-      V.toast(`Couldn't start recording the browser: ${errText(err)}`, true);
+      V.toast(`Couldn't start recording ${tab === 'signal' ? 'the signal' : 'the browser'}: ${errText(err)}`, true);
     } finally {
       brec.busy = false;
       renderBrec();
@@ -980,13 +1009,15 @@
     brecSchedule();
   }
 
-  // Stop: the backend finishes the WAV and opens it as the Audio tab's file; the page shows that tab.
-  async function stopBrowserRecord(note = '') {
+  // Stop: the backend finishes the WAV and opens it as the Audio tab's file; the page shows that tab
+  // (showAudio: not when the user has left the tab that records, see setSource).
+  async function stopBrowserRecord(note = '', showAudio = true) {
     if (!brec.on || brec.stopping) return;
     brec.stopping = true;
     clearTimeout(brec.timer);
     brec.timer = null;
     renderBrec();
+    const from = brec.source;
     let r = null;
     try {
       r = await V.api('/api/playground/browser-record', {
@@ -1004,11 +1035,13 @@
       await beforeNewFile(); // as for any new file: nothing of the old one plays on
       autoEditsPending = true; // Configuration > Audio's automatic edits, as soon as it is decoded
       if (r.audio) applyAudio(r.audio); else loadAudio();
-      if (source !== 'file') setSource('file');
-      // The page would play on behind the Audio tab (a YouTube video, say): pause it.
-      V.api('/api/browser/audio/pause', { method: 'POST' }).catch(() => {});
+      if (showAudio && (source !== 'file' || fileView !== 'audio')) setSource('file');
+      // The page would play on behind the Audio tab (a YouTube video, say): pause it. Not for a signal.
+      if (from === 'browser') V.api('/api/browser/audio/pause', { method: 'POST' }).catch(() => {});
       const auto = autoEditsText(await autoEdits());
-      V.toast(`Recorded ${fmtTime(seconds)} from the browser${auto ? `, ${auto}` : ''} — it's the Audio tab's file now`);
+      const what = from === 'signal'
+        ? `from the signal${brec.through ? ` (after ${brec.through})` : ''}` : 'from the browser';
+      V.toast(`Recorded ${fmtTime(seconds)} ${what}${auto ? `, ${auto}` : ''} — it's the Audio tab's file now`);
     }
     renderBrec();
   }
@@ -1021,6 +1054,7 @@
       const st = await V.api('/api/playground/browser-record');
       if (!st || brec.on || (!st.on && !st.pending)) return;
       brec.seconds = num(st.seconds) || 0;
+      brec.source = st.source === 'signal' ? 'signal' : 'browser';
       brec.on = true;
       // Pending: it stopped by itself while the page was away (a rate change). It is collected as a Stop.
       if (!st.on) { await stopBrowserRecord(st.error || ''); return; }
@@ -1047,9 +1081,6 @@
     els.browserPanel.hidden = audioTab;
     els.audioPanel.hidden = !audioTab || signalTab;
     els.signalPanel.hidden = !signalTab;
-    // One waveform view (the file and its recording), shown in whichever of the two file tabs is open.
-    const home = signalTab ? els.signalWave : els.audioPanel;
-    if (els.wave.parentElement !== home) home.appendChild(els.wave);
     if (signalTab && !signal && V.PlaygroundSignal) signal = V.PlaygroundSignal.create(els.signal, signalHost);
     if (signal) signal.show(signalTab);
     placeBrowser(); // the browser hides at once (Audio) or comes back (Browser)
@@ -2131,6 +2162,7 @@
       }
     }
     els.deck.classList.toggle('is-file', source === 'file');
+    els.deck.classList.toggle('is-signal', source === 'file' && fileView === 'signal'); // its Record shows here
     els.browserNote.textContent = browserNote();
     setHtml('session', els.session, sessionHtml());
     const buffer = bufferText();
@@ -2820,10 +2852,10 @@
           <div class="pg-tabs">
             <div class="pg-tablist" role="tablist" aria-label="Sound to play through the plugin">
               <button type="button" role="tab" class="pg-tab" data-src="browser" id="pg-tab-browser" aria-controls="pg-panel-browser">${ICON.globe}<span>Browser</span></button>
+              <button type="button" role="tab" class="pg-tab" data-src="signal" id="pg-tab-signal" aria-controls="pg-panel-signal"
+                title="Test signals (an oscillator, wavetables, noise, impulses): play them through the plugin and record what comes out">${ICON.signal}<span>Signal</span></button>
               <button type="button" role="tab" class="pg-tab" data-src="file" id="pg-tab-audio" aria-controls="pg-panel-audio"
                 title="An audio file: play it through the plugin and record what comes out">${ICON.wave}<span>Audio</span></button>
-              <button type="button" role="tab" class="pg-tab" data-src="signal" id="pg-tab-signal" aria-controls="pg-panel-signal"
-                title="Test signals (oscillators, wavetables, noise, sweeps, bursts…): play them through the plugin and record what comes out">${ICON.signal}<span>Signal</span></button>
             </div>
             <div class="pg-layouts" role="radiogroup" aria-label="Layout">
               <button type="button" role="radio" data-layout="side" aria-label="Plugins on the side" title="Plugins on the side">${ICON.side}</button>
@@ -2873,7 +2905,6 @@
           </div>
           <div class="pg-panel pg-panel-signal" id="pg-panel-signal" role="tabpanel" aria-labelledby="pg-tab-signal" hidden>
             <div class="pg-signal"></div>
-            <div class="pg-signal-wave"></div>
           </div>
           <div class="pg-deck">
             <div class="pg-deck-row">
@@ -2920,7 +2951,7 @@
       back: $('[data-nav="back"]'), forward: $('[data-nav="forward"]'), reload: $('[data-nav="reload"]'), home: $('[data-nav="home"]'),
       layoutBtns: [...el.querySelectorAll('[data-layout]')],
       browserPanel: $('.pg-panel-browser'), audioPanel: $('.pg-panel-audio'),
-      signalPanel: $('.pg-panel-signal'), signal: $('.pg-signal'), signalWave: $('.pg-signal-wave'),
+      signalPanel: $('.pg-panel-signal'), signal: $('.pg-signal'),
       view: $('.pg-view'), deck: $('.pg-deck'), srcBtns: [...el.querySelectorAll('.pg-tab[data-src]')],
       browserNote: $('.pg-browser-note'), brec: $('.pg-brec'), choose: $('.pg-open'),
       afileName: $('.pg-afile-name'), afileMeta: $('.pg-afile-meta'),
@@ -3067,7 +3098,7 @@
         case 'zoom-out': if (wv) wv.zoom('out'); break;
         case 'zoom-fit': if (wv) wv.zoom('fit'); break;
         case 'record': toggleRecord(); break;
-        case 'brec': if (brec.on) stopBrowserRecord(); else startBrowserRecord(); break;
+        case 'brec': if (brec.on) stopBrowserRecord(); else startBrowserRecord(brecTab()); break;
         case 'rec-play': playRecording(); break;
         case 'mute-src': muteSrc = !muteSrc; applyMutes(); renderRecordTools(); break;
         case 'mute-rec': muteRec = !muteRec; applyMutes(); renderRecordTools(); break;
@@ -3396,7 +3427,10 @@
     fileIsSignal: () => !!(audio && /[\\/]signals[\\/]signal-[^\\/]+\.wav$/i.test(audio.path || '')),
     fileName: () => (audio && audio.name) || null,
     hasRecording: () => !!(audio && audio.recording && audio.recording.exists),
-    recording: () => !!(host && host.recording),
+    // The Audio tab's file record, or a Signal Record running (the designer then only waits, see renderSignal).
+    recording: () => !!(host && host.recording) || (brec.on && brec.source === 'signal'),
+    // The Audio tab's own file record only: a render waits for it, a signal Record doesn't.
+    fileRecording: () => !!(host && host.recording),
     playing: () => running() || (!!cmpEl && !cmpEl.paused),
     setLoop: (mode) => { if (file && !(audio && audio.status === 'decoding')) setLoopMode(mode); else pendingLoop = mode; },
     loopMode: () => loopMode(),

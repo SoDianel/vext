@@ -8,7 +8,7 @@
   const V = window.VEXT;
   if (!V || V.SignalScope) return;
 
-  const KEY = 'pa-pg-scope';
+  const KEY = 'pa-pg-scope';       // the saved choices: sessionStorage (they last as long as the window)
   const SPANS = [1, 2, 5, 10, 20, 50, 100];   // ms across the picture
   const RING = 16384;              // frames kept for Live (about 340 ms at 48 kHz)
   const MAX_VIEW = RING - 2;       // the most frames one picture can show
@@ -20,10 +20,12 @@
   const LIMIT = 1.5;               // values beyond this are drawn at the edge, not off the canvas
   const MINUS = '−';
 
-  // Saved choices (the picture itself is not saved).
+  // The scope's choices are kept for this session only (the picture itself is not kept). A copy left in
+  // localStorage by an earlier version is removed once.
+  try { localStorage.removeItem(KEY); } catch { /* storage blocked: nothing to remove */ }
   function loadPrefs() {
     let p = null;
-    try { p = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* unreadable: defaults */ }
+    try { p = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch { /* unreadable: defaults */ }
     p = p || {};
     return {
       mode: p.mode === 'live' ? 'live' : 'signal',
@@ -31,7 +33,7 @@
       ms: SPANS.includes(+p.ms) ? +p.ms : 10,
     };
   }
-  const savePrefs = (p) => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* storage unavailable */ } };
+  const savePrefs = (p) => { try { sessionStorage.setItem(KEY, JSON.stringify(p)); } catch { /* storage unavailable */ } };
 
   // A ring of stereo frames: the newest `have` frames end just before index `end`. `cap` is a power of two,
   // so an index wraps with a mask and nothing is copied when the ring moves on.

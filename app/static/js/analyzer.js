@@ -834,7 +834,7 @@
       if (!holder) continue;
       const k = K.create({
         label: def.label, ariaLabel: def.aria, values: def.steps, value: params[def.key],
-        min: D.LIMITS[def.key][0], max: D.LIMITS[def.key][1], format: def.fmt,
+        min: D.LIMITS[def.key][0], max: D.LIMITS[def.key][1], format: def.fmt, reset: D.DEFAULTS[def.key],
         // setParam keeps the Lo / Hi gap; syncControls shows the value that was kept.
         onChange: (val) => setParam({ [def.key]: val }),
       });

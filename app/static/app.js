@@ -3560,32 +3560,27 @@ function labelCells(tbody, withTitles = false) {
   }));
 }
 
-// ---------- reference data (Database: categories / vendors / types) ----------
-// The three lists are loaded whole (a few hundred rows at most); the search box, the filters and
+// ---------- reference data (Database: categories / vendors) ----------
+// The two lists are loaded whole (a few hundred rows at most); the search box, the filters and
 // the order work on them in the page, like Scan's, and each tab keeps its own order.
+// Orphan rows (archived: no installed plugin behind them, see app/metadata_archive.py) are listed too,
+// with a "No plugin" badge and a Clear button; they never reach window._refCache.
 // "Scanned in" is the row's id: rows are numbered as they're first created, so it's the order a
 // scan found them in (ascending = oldest first, descending = newest first).
-const REF_KINDS_LIST = ['categories', 'vendors', 'types'];
-const REF_NOUNS = { categories: ['category', 'categories'], vendors: ['vendor', 'vendors'], types: ['plugin type', 'plugin types'] };
-const REF_SORTS = {
-  categories: [['name', 'Name'], ['slug', 'Slug'], ['description', 'Description'], ['source', 'Source'], ['id', 'Scanned in']],
-  vendors: [['name', 'Name'], ['url', 'Website'], ['status', 'Status'], ['status_note', 'Note'], ['source', 'Source'], ['id', 'Scanned in']],
-  types: [['name', 'Name'], ['description', 'Description'], ['source', 'Source'], ['id', 'Scanned in']],
-};
+const REF_KINDS_LIST = ['categories', 'vendors'];
+const REF_NOUNS = { categories: ['category', 'categories'], vendors: ['vendor', 'vendors'] };
 const REF_SOURCES = {
   categories: [['builtin', 'Built-in'], ['manual', 'Manual']],
   vendors: [['catalog', 'Catalog'], ['manual', 'Manual']],
-  types: [['builtin', 'Built-in'], ['manual', 'Manual']],
 };
 const REF_SEARCH_FIELDS = {
   categories: ['name', 'slug', 'description'],
   vendors: ['name', 'url', 'kvr_url', 'equipboard_url', 'status', 'status_note'],
-  types: ['name', 'description'],
 };
 const refSort = {
-  categories: { key: 'name', dir: 1 }, vendors: { key: 'name', dir: 1 }, types: { key: 'name', dir: 1 },
+  categories: { key: 'name', dir: 1 }, vendors: { key: 'name', dir: 1 },
 };
-let refData = { categories: [], vendors: [], types: [] };
+let refData = { categories: [], vendors: [] };
 let refKind = 'categories';
 
 const refSource = (kind, r) => r.source || REF_SOURCES[kind][0][0];
@@ -3596,8 +3591,10 @@ function refRows(kind) {
   const source = document.getElementById('db-f-source').value;
   const status = document.getElementById('db-f-status').value;
   const links = document.getElementById('db-f-links').value;
+  const orphan = document.getElementById('db-f-orphan').value;
   let rows = refData[kind];
   if (kind === refKind && source) rows = rows.filter(r => refSource(kind, r) === source);
+  if (kind === refKind && orphan) rows = rows.filter(r => (orphan === 'orphan') === (r.orphan === true));
   if (kind === 'vendors' && refKind === 'vendors') {
     if (status) rows = rows.filter(v => (v.status || 'unknown') === status);
     const missing = { 'no-url': ['url', 'no_url'], 'no-kvr': ['kvr_url', 'no_kvr'], 'no-equipboard': ['equipboard_url', 'no_equipboard'] };
@@ -3624,17 +3621,10 @@ function syncRefControls(resetFilters) {
       + REF_SOURCES[refKind].map(([v, label]) => `<option value="${v}">${label}</option>`).join('');
     document.getElementById('db-f-status').value = '';
     document.getElementById('db-f-links').value = '';
+    document.getElementById('db-f-orphan').value = '';
   }
   document.querySelectorAll('#db-sticky [data-for]').forEach(el => { el.hidden = el.dataset.for !== refKind; });
   const { key, dir } = refSort[refKind];
-  const keySel = document.getElementById('db-sort-key');
-  keySel.innerHTML = REF_SORTS[refKind].map(([k, label]) => `<option value="${k}">${label}</option>`).join('');
-  keySel.value = key;
-  const dirBtn = document.getElementById('db-sort-dir');
-  const label = key === 'id' ? (dir === 1 ? 'Oldest first' : 'Newest first') : (dir === 1 ? 'Ascending order' : 'Descending order');
-  dirBtn.classList.toggle('desc', dir !== 1);
-  dirBtn.setAttribute('aria-label', label);
-  dirBtn.title = label;
   document.querySelectorAll(`.ref-pane[data-ref-pane="${refKind}"] th[data-key]`).forEach(h => {
     h.classList.toggle('sorted', h.dataset.key === key);
     h.querySelector('.sort-arrow')?.remove();
@@ -3650,62 +3640,75 @@ function setRefSort(key, dir) {
 
 async function loadReference() {
   const [categories, vendors, types] = await Promise.all([
-    api('/api/categories'), api('/api/reference/vendors'), api('/api/reference/types'),
+    api('/api/categories?include_orphans=1'), api('/api/reference/vendors?include_orphans=1'), api('/api/reference/types'),
   ]);
-  refData = { categories, vendors, types };
-  // cache for the plugin editor's dropdowns/fast-add, refreshed each time this loads
-  window._refCache = { categories, vendors, types };
+  refData = { categories, vendors };
+  // cache for the plugin editor's dropdowns/fast-add, refreshed each time this loads.
+  // Archived (orphan) rows are never offered there.
+  window._refCache = {
+    categories: categories.filter(c => c.orphan === false),
+    vendors: vendors.filter(v => v.orphan === false),
+    types,
+  };
   if (!document.getElementById('db-f-source').childElementCount) syncRefControls(true);
   renderReference();
+}
+
+// Clears what VEXT kept about an orphan row (archive entry), after a confirm.
+async function clearArchived(archiveId) {
+  const row = [...refData.categories, ...refData.vendors].find(r => r.archive_id === archiveId);
+  const name = row ? (row.name || archiveId) : archiveId;
+  if (!(await confirmDialog(`Clear what VEXT kept about ${name}? If a plugin with it comes back, it starts without this data.`))) return;
+  try {
+    await api('/api/metadata/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [archiveId] }) });
+    toast('Cleared.');
+    loadReference();
+  } catch (err) { handleActionError(err); }
 }
 
 function renderReference() {
   const cats = refRows('categories');
   const vendors = refRows('vendors');
-  const types = refRows('types');
   const empty = (kind, cols) => {
     const filtered = refData[kind].length > 0;
     return `<tr><td colspan="${cols}" class="empty-state">${filtered ? 'No matches.' : 'None yet.'}</td></tr>`;
   };
   const attr = (s) => escHtml(s).replace(/"/g, '&quot;');
+  const orphanBadge = (r) => (r.orphan ? ' <span class="badge muted">No plugin</span>' : '');
+  const clearButton = (r) => `<button type="button" class="danger" data-clear-archive="${attr(r.archive_id)}">Clear</button>`;
 
   document.getElementById('ref-categories-tbody').innerHTML = cats.map(c => `
     <tr>
-      <td>${escHtml(c.name)}</td><td><code>${escHtml(c.slug)}</code></td><td>${escHtml(c.description)}</td>
+      <td>${escHtml(c.name)}${orphanBadge(c)}</td><td><code>${escHtml(c.slug)}</code></td><td>${escHtml(c.description)}</td>
       <td><span class="badge ${c.source === 'manual' ? '' : 'muted'}">${escHtml(refSource('categories', c))}</span></td>
       <td class="actions-inline ref-actions">
+        ${c.orphan ? clearButton(c) : `
         <button type="button" data-edit-category="${attr(c.slug)}">Edit</button>
-        <button type="button" class="danger" data-delete-category="${attr(c.slug)}">Delete</button>
+        <button type="button" class="danger" data-delete-category="${attr(c.slug)}">Delete</button>`}
       </td>
     </tr>
   `).join('') || empty('categories', 5);
 
   document.getElementById('ref-vendors-tbody').innerHTML = vendors.map(v => `
     <tr>
-      <td>${escHtml(v.name)}</td>
+      <td>${escHtml(v.name)}${orphanBadge(v)}</td>
       <td>${v.url ? `<a class="vendor-link" href="${attr(v.url)}" target="_blank" rel="noopener noreferrer">${escHtml(v.url)}</a>` : (v.no_url ? '<span class="tag link-none">No website</span>' : '-')}</td>
       <td>${[['kvr_url', 'KVR', 'no_kvr'], ['equipboard_url', 'Equipboard', 'no_equipboard']].map(([f, label, flag]) => v[f] ? `<a class="tag link-chip vendor-link" href="${attr(v[f])}" target="_blank" rel="noopener noreferrer">${label}</a>` : (v[flag] ? `<span class="tag link-none">No ${label}</span>` : `<span class="tag link-missing">${label} ?</span>`)).join('')}</td>
       <td>${escHtml(v.status) || '-'}</td>
       <td>${escHtml(v.status_note) || '-'}</td>
       <td><span class="badge ${v.source === 'manual' ? '' : 'muted'}">${escHtml(refSource('vendors', v))}</span></td>
       <td class="actions-inline ref-actions">
+        ${v.orphan ? clearButton(v) : `
         <button type="button" data-edit-vendor="${attr(v.name)}">Edit</button>
         <button type="button" class="primary" data-assign-vendor="${attr(v.name)}" title="Assign this vendor to plugin(s)">Assign</button>
-        <button type="button" class="danger" data-delete-vendor="${attr(v.name)}">Delete</button>
+        <button type="button" class="danger" data-delete-vendor="${attr(v.name)}">Delete</button>`}
       </td>
     </tr>
   `).join('') || empty('vendors', 7);
 
-  document.getElementById('ref-types-tbody').innerHTML = types.map(t => `
-    <tr>
-      <td>${escHtml(t.name)}</td><td>${escHtml(t.description) || '-'}</td>
-      <td><span class="badge ${t.source === 'manual' ? '' : 'muted'}">${escHtml(refSource('types', t))}</span></td>
-    </tr>
-  `).join('') || empty('types', 3);
-
   REF_KINDS_LIST.forEach(k => labelCells(document.getElementById(`ref-${k}-tbody`), true));
 
-  const shown = { categories: cats, vendors, types }[refKind].length;
+  const shown = { categories: cats, vendors }[refKind].length;
   const total = refData[refKind].length;
   const noun = REF_NOUNS[refKind][total === 1 ? 0 : 1];
   document.getElementById('db-count').textContent = shown === total
@@ -3724,6 +3727,8 @@ document.getElementById('ref-categories-tbody').addEventListener('click', async 
   const edit = e.target.closest('[data-edit-category]');
   const del = e.target.closest('[data-delete-category]');
   if (edit) showRefModal('category', refData.categories.find(x => x.slug === edit.dataset.editCategory));
+  const clear = e.target.closest('[data-clear-archive]');
+  if (clear) return clearArchived(clear.dataset.clearArchive);
   if (!del) return;
   const c = refData.categories.find(x => x.slug === del.dataset.deleteCategory);
   if (!c) return;
@@ -3741,6 +3746,8 @@ document.getElementById('ref-vendors-tbody').addEventListener('click', async (e)
   const del = e.target.closest('[data-delete-vendor]');
   if (edit) showRefModal('vendor', refData.vendors.find(x => x.name === edit.dataset.editVendor));
   if (assign) showVendorAssignModal(assign.dataset.assignVendor);
+  const clear = e.target.closest('[data-clear-archive]');
+  if (clear) return clearArchived(clear.dataset.clearArchive);
   if (!del) return;
   const name = del.dataset.deleteVendor;
   if (!(await confirmDialog(`Delete vendor "${name}" from the reference list? Plugins carrying this vendor are cleared back to "Missing vendor" (not just unlinked) and can be reassigned to a different vendor afterward.`))) return;
@@ -3753,12 +3760,7 @@ document.getElementById('ref-vendors-tbody').addEventListener('click', async (e)
 
 // Search, filters and order.
 document.getElementById('db-search').addEventListener('input', debounce(renderReference, 150));
-['db-f-source', 'db-f-status', 'db-f-links'].forEach(id => document.getElementById(id).addEventListener('change', renderReference));
-document.getElementById('db-sort-key').addEventListener('change', (e) => {
-  // Scanned in starts with the newest, any other order with A to Z.
-  setRefSort(e.target.value, e.target.value === 'id' ? -1 : 1);
-});
-document.getElementById('db-sort-dir').addEventListener('click', () => setRefSort(refSort[refKind].key, -refSort[refKind].dir));
+['db-f-source', 'db-f-status', 'db-f-links', 'db-f-orphan'].forEach(id => document.getElementById(id).addEventListener('change', renderReference));
 document.querySelectorAll('.ref-pane th[data-key]').forEach(th => {
   th.addEventListener('click', () => {
     const key = th.dataset.key;
@@ -4347,6 +4349,13 @@ document.querySelectorAll('#reference-tabs button[data-ref-pane]').forEach(btn =
       b.setAttribute('aria-selected', String(on));
     });
     document.querySelectorAll('.ref-pane').forEach(p => p.classList.toggle('active', p.dataset.refPane === btn.dataset.refPane));
+    // Metadata isn't reference data: its own list (js/database-metadata.js), without the search bar.
+    const metadata = btn.dataset.refPane === 'metadata';
+    document.getElementById('db-sticky').hidden = metadata;
+    if (metadata) {
+      if (window.VEXT.dbMetadata) window.VEXT.dbMetadata.load(document.getElementById('db-metadata-root'));
+      return;
+    }
     refKind = btn.dataset.refPane;
     syncRefControls(true);
     renderReference();

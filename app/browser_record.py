@@ -1,15 +1,20 @@
-"""Records the browser's sound into the Audio tab (AGENTS.md "Analyzer").
+"""Records the sound into the Audio tab (AGENTS.md "Analyzer", "Playground").
 
-POST /api/playground/browser-record {on: true} starts a thread that follows the
-analysis tap (app/analysis_tap.py) and appends what the browser plays to a float
-WAV in cache/playground/captures/. Only frames of the browser count: mode live
-(through the open plugin: the sound after it) or browser (no plugin). {on: false}
-stops, finalises the file and the route opens it as the Audio tab's file.
+POST /api/playground/browser-record {on: true, source} starts a thread that follows the
+analysis tap (app/analysis_tap.py) and appends what plays to a float WAV in
+cache/playground/captures/. Two sources:
+  browser  the browser's sound: mode live (through the open plugin: the sound after it)
+           or browser (no plugin). The pages are asked to send their frames.
+  signal   the Signal tab's file playing through the open plugin (mode file): the sound
+           after it. The pages are not involved.
+{on: false} stops, finalises the file and the route opens it as the Audio tab's file.
 
 The thread reads the ring one block after another (the ring holds ~5 s, polled
 every 40 ms), so nothing is skipped. Stretches where the stream stopped (the tap's
 silence skip) are simply not recorded. A change of sample rate ends the recording
-(what was recorded is kept) with an error the page shows.
+(what was recorded is kept) with an error the page shows. A new stream of the same
+rate (the signal rendered again: the ring restarts with a new gen) goes on from its
+first frame; the time the render took is not in the file.
 
 Each ring has its own cursor: a ring that plays something else (a plugin looping a
 file) is left alone, and going back to a ring continues where it stopped. The
@@ -28,9 +33,16 @@ from app import analysis_tap, host_worker, playground_audio
 CAPTURES = playground_audio.CACHE_DIR / "captures"
 POLL_S = 0.04
 READ_FRAMES = 1 << 16  # frames taken per read
-MODES = (analysis_tap.LIVE, analysis_tap.BROWSER)  # what a recording takes: the browser's sound
+MODES = {  # per source: the ring modes a recording takes
+    "browser": (analysis_tap.LIVE, analysis_tap.BROWSER),
+    "signal": (analysis_tap.FILE,),
+}
+TITLES = {"browser": "Browser recording", "signal": "Signal recording"}
 MAX_FRAMES = playground_audio.MAX_DATA_BYTES // 8  # one RIFF file (stereo float32)
-NOTHING = "Nothing was recorded: play something in the browser"
+NOTHING = {
+    "browser": "Nothing was recorded: play something in the browser",
+    "signal": "Nothing was recorded: play the signal through a plugin",
+}
 
 
 class RecordError(Exception):
@@ -38,9 +50,10 @@ class RecordError(Exception):
 
 
 class _Job:
-    def __init__(self, path, file, cursors):
-        self.path, self.file = path, file
-        self.name = f"Browser recording {time.strftime('%Y-%m-%d %H.%M.%S')}.wav"
+    def __init__(self, path, file, cursors, source):
+        self.path, self.file, self.source = path, file, source
+        self.modes = MODES[source]
+        self.name = f"{TITLES[source]} {time.strftime('%Y-%m-%d %H.%M.%S')}.wav"
         self.cursors = cursors  # id(ring) -> (gen, next frame): what was already there when it started
         self.rate = 0
         self.frames = 0
@@ -65,21 +78,23 @@ def _clock(frames: int, rate: int) -> str:
 def _run(job: _Job) -> None:
     try:
         while not job.stop.is_set():
-            # The plugin's ring or the browser's, whichever plays one of MODES now. The
-            # other rings keep their cursors: back to one, it continues from there.
-            reader, plugin = analysis_tap.pick(MODES)
+            # The plugin's ring or the browser's, whichever plays one of the job's modes now.
+            # The other rings keep their cursors: back to one, it continues from there.
+            reader, plugin = analysis_tap.pick(job.modes)
             if reader is None:
                 job.stop.wait(POLL_S)
                 continue
             key = id(reader)
             gen, end = job.cursors.get(key, (None, 0))
+            # A ring restarted (gen bump, e.g. the signal rendered again) answers from its
+            # frame 0 of the new gen, so the recording goes on across it.
             gen, rate, mode, _flags, end, _before, after = reader.read(gen, end, READ_FRAMES)
             job.cursors[key] = (gen, end)
             n = len(after)
             if not n:
                 job.stop.wait(POLL_S)
                 continue
-            if mode in MODES:
+            if mode in job.modes:
                 if job.rate and rate != job.rate:
                     job.error = f"The sample rate changed: recording stopped at {_clock(job.frames, job.rate)}"
                     return
@@ -96,7 +111,7 @@ def _run(job: _Job) -> None:
                 with _lock:
                     job.frames += n
                     job.peak = max(job.peak, float(np.abs(after).max()))
-                    job.through = plugin if mode == analysis_tap.LIVE else None
+                    job.through = plugin  # the browser's ring has no plugin: None
             if n < READ_FRAMES:
                 job.stop.wait(POLL_S)
     except Exception as e:  # noqa: BLE001 - shown in the page
@@ -109,7 +124,7 @@ def _run(job: _Job) -> None:
         with _lock:
             job.active = False
             # Not after a later start(): that one set the flag on for its own job.
-            if _job is None or _job is job:
+            if job.source == "browser" and (_job is None or _job is job):
                 analysis_tap.set_recording(False)
 
 
@@ -139,19 +154,20 @@ def _finish(job: _Job) -> None:
 def _status(job: _Job | None, take_peak: bool = False) -> dict:
     if job is None:
         return {"on": False, "seconds": 0.0, "frames": 0, "rate": 0, "peak": 0.0, "through": None, "error": None,
-                "pending": False}
+                "pending": False, "source": None}
     with _lock:
         peak = job.peak
         if take_peak:
             job.peak = 0.0
         return {"on": job.active, "seconds": round(job.frames / job.rate, 3) if job.rate else 0.0,
                 "frames": job.frames, "rate": job.rate, "peak": round(peak, 5), "through": job.through,
-                "error": job.error, "pending": not job.active and job.frames > 0}
+                "error": job.error, "pending": not job.active and job.frames > 0, "source": job.source}
 
 
 def status(take_peak: bool = False) -> dict:
     """{on, seconds, frames, rate, peak (linear, since the last take_peak), through
-    (the plugin's name), error, pending (stopped by itself, waiting to be opened by stop())}."""
+    (the plugin's name), error, pending (stopped by itself, waiting to be opened by stop()),
+    source ("browser" | "signal", None when no recording exists)}."""
     with _lock:
         return _status(_job, take_peak)
 
@@ -161,12 +177,12 @@ def running() -> bool:
         return _job is not None and _job.active
 
 
-def start() -> dict:
-    """Starts recording. RecordError if it already does."""
+def start(source: str = "browser") -> dict:
+    """Starts recording the `source` ("browser" or "signal"). RecordError if one already runs."""
     global _job
     with _lock:
         if _job is not None and _job.active:
-            raise RecordError("Already recording the browser.")
+            raise RecordError(f"Already recording the {_job.source}.")
         _job = None
         CAPTURES.mkdir(parents=True, exist_ok=True)
         for name in os.listdir(CAPTURES):  # only the latest one is kept
@@ -174,9 +190,9 @@ def start() -> dict:
                 os.unlink(CAPTURES / name)
             except OSError:
                 pass
-        path = CAPTURES / f"browser-{time.strftime('%Y%m%d-%H%M%S')}.wav"
+        path = CAPTURES / f"{source}-{time.strftime('%Y%m%d-%H%M%S')}.wav"
         try:
-            file = open(path, "w+b")  # read back when the silence is cut (_finish)
+            file = open(path, "w+b")  # noqa: SIM115 - kept open for the writes; closed by _finish; read back there
             file.write(host_worker.float_wav_header(2, 48000, 0))
         except OSError as e:
             raise RecordError(f"Couldn't start recording ({e.strerror or e}).") from None
@@ -185,8 +201,9 @@ def start() -> dict:
         for reader, _name in analysis_tap.rings():
             h = reader.header()
             cursors[id(reader)] = (h["gen"], h["written"])
-        job = _job = _Job(str(path), file, cursors)
-        analysis_tap.set_recording(True)  # the pages are told to send their frames
+        job = _job = _Job(str(path), file, cursors, source)
+        if source == "browser":
+            analysis_tap.set_recording(True)  # the pages are told to send their frames (a signal doesn't need it)
         job.thread = threading.Thread(target=_run, args=(job,), daemon=True, name="browser-record")
         job.thread.start()
         return _status(job)
@@ -212,5 +229,5 @@ def stop() -> dict:
             os.unlink(job.path)
         except OSError:
             pass
-        raise RecordError(job.error or NOTHING)
+        raise RecordError(job.error or NOTHING[job.source])
     return {"path": job.path, "name": job.name, "status": {**done, "on": False, "pending": False}}

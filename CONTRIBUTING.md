@@ -34,8 +34,8 @@ The tests are plain scripts in `tools\test_*.py`. Each sets its own temporary ro
 `LOCALAPPDATA`), so they never touch real data, and **each must run in its own process**:
 
 ```
-.venv-native\Scripts\python tools\test_storage.py
-.venv-native\Scripts\python tools\test_signal_gen.py
+.venv-dev\Scripts\python -m pytest tools\test_storage.py -q
+.venv-dev\Scripts\python -m pytest tools\test_metadata_archive.py -q
 ```
 
 Run the ones that cover what you changed, and say which in the pull request. Release builds are checked with

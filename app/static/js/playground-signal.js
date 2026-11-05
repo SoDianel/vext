@@ -3,7 +3,11 @@
 // POST /api/playground/signal renders it to a WAV that opens as the Playground's file, so the signal
 // plays through the plugin, loops and records like any file. Live renders ~300 ms after the last change
 // (a knob drag sends many); one render runs at a time, and a change made during one queues one more.
-// The patch is kept in localStorage. The scope (js/signal-scope.js) draws the rendered preview.
+// One oscillator, plus noise and impulses: the three are tabs (Oscillator · Noise · Impulse), and the
+// scope (js/signal-scope.js) takes the panel's full height beside them. The patch is kept in sessionStorage
+// (it lasts as long as the window; closing the app clears it); a patch saved before the single oscillator
+// (an `oscillators` list) is migrated on load, and a saved `wavetable` wave falls back to sine.
+// Alt + double-click on a knob, a segmented control or a select sets it back to its default.
 // No control takes Space: it is the Playground's play / pause key, so it passes through.
 (function () {
   const V = window.VEXT;
@@ -12,27 +16,25 @@
 
   const KEY = 'pa-pg-signal';
   const LIVE_KEY = 'pa-pg-signal-live';
-  const REC_OK_KEY = 'pa-pg-signal-rec-ok';
+  const REC_OK_KEY = 'pa-pg-signal-rec-ok';   // a preference, not a value: stays in localStorage
+  const SRC_KEY = 'pa-pg-signal-src';   // the source tab shown: osc | noise | impulse
   const LIVE_MS = 300;             // Live: render this long after the last change
   const REC_POLL_MS = 300;         // a render waiting for Record to stop
   const MINUS = '−';
+  // The values above moved from localStorage to sessionStorage: their old copies are removed once.
+  for (const k of [KEY, LIVE_KEY, SRC_KEY]) {
+    try { localStorage.removeItem(k); } catch { /* storage blocked: nothing to remove */ }
+  }
 
   const LENGTHS = [1, 2, 5, 10, 20, 30, 60];
   const RATES = [[44100, '44.1 kHz'], [48000, '48 kHz'], [88200, '88.2 kHz'], [96000, '96 kHz']];
   const SEAMS = [[0, 'Off'], [10, '10 ms'], [20, '20 ms'], [50, '50 ms'], [100, '100 ms']];
   const CHANNELS = [['stereo', 'Stereo'], ['mono', 'Mono'], ['left', 'L'], ['right', 'R'], ['invert', 'Inverted']];
-  const WAVES = [['sine', 'Sine'], ['triangle', 'Tri'], ['saw', 'Saw'], ['square', 'Square'], ['pulse', 'Pulse'],
-    ['wavetable', 'Table']];
+  const WAVES = [['sine', 'Sine'], ['triangle', 'Tri'], ['saw', 'Saw'], ['square', 'Square'], ['pulse', 'Pulse']];
   const COLORS = [['white', 'White'], ['pink', 'Pink'], ['brown', 'Brown'], ['blue', 'Blue'], ['violet', 'Violet']];
   const STEREO = [['same', 'Same'], ['independent', 'Independent']];
   const POLARITY = [['positive', '+'], ['negative', MINUS], ['alternate', '±']];
-  const LAWS = [['log', 'Log'], ['linear', 'Linear']];
-  const BUILTIN_TABLES = [
-    { name: 'basic', label: 'Basic', user: false }, { name: 'harmonics', label: 'Harmonics', user: false },
-    { name: 'pwm', label: 'PWM', user: false }, { name: 'formant', label: 'Formant', user: false },
-    { name: 'sync', label: 'Sync', user: false }, { name: 'fm', label: 'FM', user: false },
-    { name: 'bitcrush', label: 'Bitcrush', user: false },
-  ];
+  const SOURCES = [['osc', 'Oscillator'], ['noise', 'Noise'], ['impulse', 'Impulse']];
 
   // Knob steps (ascending lists; the knob draws a value between two steps where it falls).
   function range(a, b, step) {
@@ -41,8 +43,7 @@
     return out;
   }
   const DB = range(-60, 0, 1);
-  const DB_FULL = range(-80, 0, 1);
-  const PERCENT = range(0, 100, 1);
+  const MASTER = range(-24, 24, 1);
   const PERCENT_5 = range(0, 100, 5);
   const WIDTH = range(1, 99, 1);
   const PAN = range(-100, 100, 5);
@@ -51,21 +52,17 @@
   const PHASE = range(0, 360, 15);
   const VOICES = range(1, 8, 1);
   const SPREAD = [0, 1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50, 75, 100];
-  const LFO_HZ = [0, 0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
-  const LFO_CENTS = [0, 5, 10, 20, 50, 100, 200, 1200];
-  const MS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
   const EVERY = [10, 20, 50, 100, 200, 250, 500, 1000, 2000, 5000];
-  const STEP_DB = [1, 2, 3, 6, 10];
   const TONE = K.STEPS.tone;
 
   const sgn = (v) => (v > 0 ? `+${v}` : v < 0 ? `${MINUS}${-v}` : '0');
   const pct = (v) => `${v}%`;
   const panText = (v) => (v < 0 ? `L${-v}` : v > 0 ? `R${v}` : 'C');
   const msText = (v) => (v >= 1000 ? `${v / 1000} s` : `${v} ms`);
-  const hzText = (v) => `${v} Hz`;
   const ctText = (v) => `${v} ct`;
   const degText = (v) => `${v}°`;
   const dbText = (v) => (v == null ? `${MINUS}∞` : `${v < 0 ? MINUS : ''}${Math.abs(v).toFixed(1)}`);
+  const masterText = (v) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).toFixed(1)} dB`;
 
   // Note names to Hz (scientific pitch: C4 = 261.63 Hz, A4 = 440). Sharps # or ♯, flats b or ♭.
   const NOTE_PC = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
@@ -86,24 +83,22 @@
   // ---------- the patch (app/signal_gen.py's schema; the backend fills and clamps anything missing) ----------
   function osc() {
     return {
-      on: true, wave: 'sine', table: 'basic', position: 0, width: 0.5, freq: 1000, semitones: 0, detune: 0,
+      on: true, wave: 'sine', width: 0.5, freq: 1000, semitones: 0, detune: 0,
       phase: 0, unison: 1, unison_detune: 15, unison_spread: 0.5, random_phase: false, level_db: 0, pan: 0,
-      invert: false, sweep: { on: false, to: 20000, law: 'log' }, vibrato: { rate: 0, depth: 0 },
-      tremolo: { rate: 0, depth: 0 },
+      invert: false,
     };
   }
   function base() {
     return {
-      seconds: 10, rate: 48000, level_db: -18, normalize: true, channels: 'stereo', seam_ms: 20,
-      oscillators: [osc()],
+      seconds: 10, rate: 48000, level_db: -18, master_db: 0, normalize: true, channels: 'stereo', seam_ms: 20,
+      osc: osc(),
       noise: { on: false, color: 'pink', level_db: 0, stereo: 'same' },
       impulse: { on: false, every_ms: 1000, level_db: 0, polarity: 'positive' },
-      gate: { on: false, on_ms: 200, off_ms: 800, attack_ms: 1, release_ms: 1 },
-      steps: { on: false, from_db: -60, to_db: 0, step_db: 6, step_ms: 500 },
       dc: 0,
     };
   }
-  const clone = (p) => JSON.parse(JSON.stringify(p));
+  // The defaults (read only): the values Alt + double-click resets a control to.
+  const DEFAULT = base();
 
   // src's values where they have the type of the default, else the default (unknown keys dropped).
   function merge(def, src) {
@@ -118,58 +113,42 @@
   }
   function fill(src) {
     const p = merge(base(), src);
-    p.oscillators = Array.isArray(src && src.oscillators)
-      ? src.oscillators.slice(0, 4).map((o) => merge(osc(), o))
-      : base().oscillators;
+    // A patch saved before the single oscillator had a list: its first item, or none when the list was empty.
+    if (src && Array.isArray(src.oscillators) && !(src.osc && typeof src.osc === 'object')) {
+      p.osc = src.oscillators.length ? merge(osc(), src.oscillators[0]) : { ...osc(), on: false };
+    }
+    // The Table wave is gone: a patch saved with it plays the sine.
+    if (p.osc.wave === 'wavetable') p.osc.wave = 'sine';
     return p;
   }
   function loadPatch() {
     try {
-      const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+      const saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
       if (saved && typeof saved === 'object') return fill(saved);
     } catch { /* a damaged value: the default signal */ }
     return base();
   }
 
   // The presets: each one a whole patch (the defaults plus its own changes).
-  const sweep = (p, law) => {
-    Object.assign(p.oscillators[0], { freq: 20, sweep: { on: true, to: 20000, law } });
-  };
   const noise = (p, color) => {
-    p.oscillators = [];
+    p.osc.on = false;
     Object.assign(p.noise, { on: true, color });
   };
   const PRESETS = [
     { group: 'Tones', name: 'Sine 1 kHz, −18 dBFS', edit: () => {} },
-    { group: 'Tones', name: 'Sine 997 Hz, −1 dBFS (THD)', edit: (p) => { p.level_db = -1; p.oscillators[0].freq = 997; } },
-    { group: 'Tones', name: 'Sine 100 Hz', edit: (p) => { p.oscillators[0].freq = 100; } },
-    { group: 'Tones', name: 'Square 100 Hz', edit: (p) => { Object.assign(p.oscillators[0], { wave: 'square', freq: 100 }); } },
-    { group: 'Tones', name: 'Saw 110 Hz', edit: (p) => { Object.assign(p.oscillators[0], { wave: 'saw', freq: 110 }); } },
+    { group: 'Tones', name: 'Sine 997 Hz, −1 dBFS (THD)', edit: (p) => { p.level_db = -1; p.osc.freq = 997; } },
+    { group: 'Tones', name: 'Sine 100 Hz', edit: (p) => { p.osc.freq = 100; } },
+    { group: 'Tones', name: 'Square 100 Hz', edit: (p) => { Object.assign(p.osc, { wave: 'square', freq: 100 }); } },
+    { group: 'Tones', name: 'Saw 110 Hz', edit: (p) => { Object.assign(p.osc, { wave: 'saw', freq: 110 }); } },
     { group: 'Tones', name: 'Supersaw (saw 110 Hz, 7 voices)', edit: (p) => {
-      Object.assign(p.oscillators[0], { wave: 'saw', freq: 110, unison: 7, unison_detune: 25, unison_spread: 0.8 });
+      Object.assign(p.osc, { wave: 'saw', freq: 110, unison: 7, unison_detune: 25, unison_spread: 0.8 });
     } },
-    { group: 'Tones', name: 'Wavetable sweep', edit: (p) => {
-      Object.assign(p.oscillators[0], { wave: 'wavetable', table: 'basic', position: 0.5, freq: 110 });
-    } },
-    { group: 'Sweeps', name: 'Log sweep 20 Hz–20 kHz (10 s)', edit: (p) => sweep(p, 'log') },
-    { group: 'Sweeps', name: 'Linear sweep 20 Hz–20 kHz (10 s)', edit: (p) => sweep(p, 'linear') },
     { group: 'Noise', name: 'Pink noise', edit: (p) => noise(p, 'pink') },
     { group: 'Noise', name: 'White noise', edit: (p) => noise(p, 'white') },
     { group: 'Noise', name: 'Brown noise', edit: (p) => noise(p, 'brown') },
-    { group: 'Distortion', name: 'SMPTE IMD (60 Hz + 7 kHz at −12 dB, 4:1)', edit: (p) => {
-      p.oscillators = [{ ...osc(), freq: 60 }, { ...osc(), freq: 7000, level_db: -12 }];
-    } },
-    { group: 'Distortion', name: 'CCIF IMD (19 kHz + 20 kHz)', edit: (p) => {
-      p.oscillators = [{ ...osc(), freq: 19000 }, { ...osc(), freq: 20000 }];
-    } },
-    { group: 'Timing', name: 'Tone burst 1 kHz (200 ms on, 800 ms off)', edit: (p) => { p.gate.on = true; } },
-    { group: 'Timing', name: 'Level staircase 1 kHz (−60 → 0 dB, 6 dB / 500 ms)', edit: (p) => { p.steps.on = true; } },
-    { group: 'Timing', name: 'Impulse train (1 per second)', edit: (p) => { p.oscillators = []; p.impulse.on = true; } },
     { group: 'Stereo', name: 'Stereo phase test (sine 1 kHz, inverted)', edit: (p) => { p.channels = 'invert'; } },
-    { group: 'Stereo', name: 'Beating (440 Hz + 441 Hz)', edit: (p) => {
-      p.oscillators = [{ ...osc(), freq: 440 }, { ...osc(), freq: 441 }];
-    } },
-    { group: 'Other', name: 'Silence (noise-floor test)', edit: (p) => { p.oscillators = []; } },
+    { group: 'Other', name: 'Impulse train (1 per second)', edit: (p) => { p.osc.on = false; p.impulse.on = true; } },
+    { group: 'Other', name: 'Silence (noise-floor test)', edit: (p) => { p.osc.on = false; } },
   ];
   const presetPatch = (edit) => {
     const p = base();
@@ -210,7 +189,13 @@
   // ---------- the designer ----------
   function create(box, host) {
     let patch = loadPatch();
-    let live = localStorage.getItem(LIVE_KEY) !== '0';
+    let live = true;
+    let src = 'osc';            // the source tab shown
+    try {
+      live = sessionStorage.getItem(LIVE_KEY) !== '0';
+      const s = sessionStorage.getItem(SRC_KEY);
+      if (SOURCES.some(([k]) => k === s)) src = s;
+    } catch { /* storage blocked: Live on, the Oscillator tab */ }
     let renderedKey = null;     // the patch as the last render sent it; a difference is a change not rendered
     let busy = false;           // a render, or the question before it, is under way
     let queued = false;         // a change came in while busy: one render more after it
@@ -223,8 +208,6 @@
     let destroyed = false;
     let liveTimer = null;
     let recTimer = null;
-    let oscCount = -1;          // the oscillator cards on screen
-    let tables = BUILTIN_TABLES;
     let menuOpen = false;
 
     let presetBtn = null;
@@ -232,20 +215,20 @@
     let menu = null;
     let renderBtn = null;
     let infoEl = null;
-    let oscGrid = null;
-    let addBtn = null;
-    let emptyHint = null;
+    let tabBtns = {};           // source key -> its tab button
+    let panels = {};            // source key -> its tab panel
+    let scroller = null;        // the tab panel region that scrolls
     let scope = null;
     const scopeBox = make('div', 'pgs-scope');
 
     function save() {
-      try { localStorage.setItem(KEY, JSON.stringify(patch)); } catch { /* blocked: the patch lasts this session */ }
+      try { sessionStorage.setItem(KEY, JSON.stringify(patch)); } catch { /* blocked: the patch is not kept */ }
     }
 
     // A change: keep it, bring every control in step with the patch, and plan a Live render.
-    function changed(structural) {
+    function changed() {
       save();
-      syncAll(structural);
+      syncAll();
       if (live) {
         pending = true;
         schedule();
@@ -259,8 +242,7 @@
         render(false);
       }, LIVE_MS);
     }
-    function syncAll(structural) {
-      if (structural || oscCount !== patch.oscillators.length) buildOscs();
+    function syncAll() {
       for (const n of box.querySelectorAll('.pgs-ctl')) n.pgsSync();
       syncRender();
     }
@@ -336,7 +318,8 @@
       });
     }
 
-    // Record is running: the render waits for it to stop (no render while recording).
+    // The Audio tab's own Record is running: the render waits for it to stop. (A Signal Record
+    // does not hold renders: the recording follows the new render.)
     function waitRecording() {
       recPending = true;
       setInfo('Recording: changes apply when it stops.');
@@ -345,7 +328,7 @@
     function startRecPoll() {
       if (recTimer) return;
       recTimer = setInterval(() => {
-        if (host.recording()) return;
+        if (host.fileRecording()) return;
         stopRecPoll();
         recPending = false;
         render(false);
@@ -365,7 +348,7 @@
       }
       if (explicit) held = false;
       if (held) return;
-      if (host.recording()) { waitRecording(); return; }
+      if (host.fileRecording()) { waitRecording(); return; }
       busy = true;
       const sent = JSON.stringify(patch);
       try {
@@ -430,66 +413,13 @@
       held = false;
       pending = false;
       save();
-      syncAll(true);
+      syncAll();
       render(true);
-    }
-
-    // ---------- tables (wavetables) ----------
-    function fillTables(sel) {
-      sel.textContent = '';
-      for (const t of tables) sel.add(new Option(t.user ? `${t.label} (yours)` : t.label, t.name));
-    }
-    function refillTables() {
-      for (const sel of box.querySelectorAll('.pgs-table')) fillTables(sel);
-      syncAll(false);
-    }
-    async function loadTables() {
-      try {
-        const r = await V.api('/api/playground/signal/tables');
-        if (r && Array.isArray(r.tables) && r.tables.length) {
-          tables = r.tables.map((t) => ({ name: t.name, label: t.label || t.name, user: !!t.user }));
-        }
-      } catch { /* offline or an older backend: the built-in tables stay */ }
-      if (!destroyed) refillTables();
-    }
-    async function importTable(i) {
-      let path = '';
-      try {
-        const dlg = window.__TAURI__ && window.__TAURI__.dialog;
-        if (dlg && typeof dlg.open === 'function') {
-          const picked = await dlg.open({ filters: [{ name: 'WAV', extensions: ['wav'] }] });
-          path = Array.isArray(picked) ? picked[0] : picked;
-        } else {
-          path = window.prompt('Path of a WAV file to use as a wavetable:', '');
-        }
-      } catch (err) {
-        V.toast((err && err.message) || String(err), true);
-        return;
-      }
-      path = String(path || '').trim();
-      if (!path) return;
-      const before = new Set(tables.map((t) => t.name));
-      try {
-        await V.api('/api/playground/signal/wavetable', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }),
-        });
-      } catch (err) {
-        V.toast(err.message, true);
-        return;
-      }
-      await loadTables();
-      const added = tables.find((t) => t.user && !before.has(t.name));
-      if (added && patch.oscillators[i]) {
-        patch.oscillators[i].table = added.name;
-        changed();
-      } else {
-        V.toast('Wavetable imported. Pick it in the Table list.');
-      }
     }
 
     // ---------- controls ----------
     // A knob bound to one patch field: get() reads its value, put(v) writes what the knob gives.
-    // show() (optional) hides it while it doesn't apply.
+    // reset is the field's default (Alt + double-click); show() (optional) hides it while it doesn't apply.
     function knob(o) {
       let shownValue = o.get();
       const k = K.create({
@@ -501,6 +431,7 @@
         max: o.max,
         format: o.format,
         parse: o.parse,
+        reset: o.reset,
         onChange: (v) => { shownValue = v; o.put(v); changed(); },
       });
       tag(k.el, () => {
@@ -511,8 +442,20 @@
       return k.el;
     }
 
+    // Alt + double-click on a control of one field sets the field back to its default (reset).
+    function resetOnAlt(el, get, reset, put) {
+      el.title = 'Alt + double-click: reset';
+      el.addEventListener('dblclick', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        if (String(get()) === String(reset)) return;
+        put(reset);
+        changed();
+      });
+    }
+
     // Segmented buttons for one patch field; items are [value, text].
-    function seg(name, items, get, put) {
+    function seg(name, items, get, put, reset) {
       const group = make('div', 'segmented pgs-seg');
       group.setAttribute('role', 'radiogroup');
       group.setAttribute('aria-label', name);
@@ -531,16 +474,18 @@
           buttons[n].setAttribute('aria-checked', String(on));
         });
       });
+      resetOnAlt(group, get, reset, put);
       return group;
     }
 
     // A dropdown for one patch field; options are [value, text]. The value is handed over as a string.
-    function select(name, options, get, put) {
+    function select(name, options, get, put, reset) {
       const sel = make('select', 'pgs-select');
       sel.setAttribute('aria-label', name);
       for (const [v, text] of options) sel.add(new Option(text, String(v)));
       sel.addEventListener('change', () => { put(sel.value); changed(); });
       tag(sel, () => { sel.value = String(get()); });
+      resetOnAlt(sel, get, reset, put);
       return sel;
     }
 
@@ -555,73 +500,42 @@
       return lbl;
     }
 
-    // A card of a noise / impulse / burst / staircase: its title, an On switch, the controls (dimmed while Off).
-    function fxCard(title, get, put, parts) {
+    // The tab panel of one source: its title, an On switch, the controls (dimmed while Off).
+    function sourcePanel(key, title, parts) {
       const c = make('section', 'pgs-card');
-      c.setAttribute('aria-label', title);
+      c.id = `pgs-panel-${key}`;
+      c.setAttribute('role', 'tabpanel');
+      c.setAttribute('aria-labelledby', `pgs-tab-${key}`);
       const head = make('header', 'pgs-card-head');
-      head.append(make('span', 'pgs-card-title', title), toggle('On', get, put));
+      head.append(make('span', 'pgs-card-title', title), toggle('On', () => patch[key].on, (v) => { patch[key].on = v; }));
       const body = make('div', 'pgs-card-body');
       body.append(...parts);
       c.append(head, body);
-      tag(c, () => c.classList.toggle('is-off', !get()));
+      tag(c, () => c.classList.toggle('is-off', !patch[key].on));
       return c;
     }
 
-    function oscCard(i) {
-      const o = () => patch.oscillators[i];
-      const kn = (spec) => knob({ ...spec, aria: `Osc ${i + 1} ${spec.label}` });
-      const card = make('section', 'pgs-card pgs-osc');
-      card.setAttribute('aria-label', `Oscillator ${i + 1}`);
-
-      const head = make('header', 'pgs-card-head');
-      const x = btn('×', 'pgs-x');
-      x.title = 'Remove this oscillator';
-      x.setAttribute('aria-label', `Remove Osc ${i + 1}`);
-      x.addEventListener('click', () => { patch.oscillators.splice(i, 1); changed(true); });
-      head.append(
-        make('span', 'pgs-card-title', `Osc ${i + 1}`),
-        toggle('On', () => o().on, (v) => { o().on = v; }),
-        make('span', 'pgs-spacer'),
-        x,
-      );
-
-      const wave = seg('Wave', WAVES, () => o().wave, (v) => { o().wave = v; });
-
-      const tableSel = make('select', 'pgs-select pgs-table');
-      tableSel.setAttribute('aria-label', `Osc ${i + 1} table`);
-      fillTables(tableSel);
-      tableSel.addEventListener('change', () => { o().table = tableSel.value; changed(); });
-      tag(tableSel, () => {
-        const v = o().table;
-        if (![...tableSel.options].some((opt) => opt.value === v)) tableSel.add(new Option(v, v));
-        tableSel.value = v;
-      });
-      const importBtn = btn('Import…', '');
-      importBtn.title = 'Use a WAV file as a wavetable: one cycle per 2048 samples';
-      importBtn.addEventListener('click', () => importTable(i));
-      const tableRow = row(lab('Table'), tableSel, importBtn);
-      tag(tableRow, () => { tableRow.hidden = o().wave !== 'wavetable'; });
+    function oscParts() {
+      const o = () => patch.osc;
+      const wave = seg('Wave', WAVES, () => o().wave, (v) => { o().wave = v; }, DEFAULT.osc.wave);
 
       const pitch = knobRow(
-        kn({ label: 'Freq', values: TONE, min: 1, max: 24000, format: K.fmtFreq, parse: parseHz,
-          get: () => o().freq, put: (v) => { o().freq = v; } }),
-        kn({ label: 'Semi', values: SEMI, min: -48, max: 48, format: sgn,
-          get: () => o().semitones, put: (v) => { o().semitones = v; } }),
-        kn({ label: 'Detune', values: DETUNE, min: -100, max: 100, format: (v) => `${sgn(v)} ct`,
-          get: () => o().detune, put: (v) => { o().detune = v; } }),
-        kn({ label: 'Phase', values: PHASE, min: 0, max: 360, format: degText,
-          get: () => o().phase, put: (v) => { o().phase = v; } }),
-        kn({ label: 'Level', values: DB, min: -60, max: 0, format: K.fmtDb,
-          get: () => o().level_db, put: (v) => { o().level_db = v; } }),
-        kn({ label: 'Pan', values: PAN, min: -100, max: 100, format: panText,
-          get: () => Math.round(o().pan * 100), put: (v) => { o().pan = v / 100; } }),
-        kn({ label: 'Position', values: PERCENT, min: 0, max: 100, format: pct,
-          get: () => Math.round(o().position * 100), put: (v) => { o().position = v / 100; },
-          show: () => o().wave === 'wavetable' }),
-        kn({ label: 'Pulse', values: WIDTH, min: 1, max: 99, format: pct,
+        knob({ label: 'Freq', values: TONE, min: 1, max: 24000, format: K.fmtFreq, parse: parseHz,
+          get: () => o().freq, put: (v) => { o().freq = v; }, reset: DEFAULT.osc.freq }),
+        knob({ label: 'Semi', values: SEMI, min: -48, max: 48, format: sgn,
+          get: () => o().semitones, put: (v) => { o().semitones = v; }, reset: DEFAULT.osc.semitones }),
+        knob({ label: 'Detune', values: DETUNE, min: -100, max: 100, format: (v) => `${sgn(v)} ct`,
+          get: () => o().detune, put: (v) => { o().detune = v; }, reset: DEFAULT.osc.detune }),
+        knob({ label: 'Phase', values: PHASE, min: 0, max: 360, format: degText,
+          get: () => o().phase, put: (v) => { o().phase = v; }, reset: DEFAULT.osc.phase }),
+        knob({ label: 'Level', values: DB, min: -60, max: 0, format: K.fmtDb,
+          get: () => o().level_db, put: (v) => { o().level_db = v; }, reset: DEFAULT.osc.level_db }),
+        knob({ label: 'Pan', values: PAN, min: -100, max: 100, format: panText,
+          get: () => Math.round(o().pan * 100), put: (v) => { o().pan = v / 100; },
+          reset: Math.round(DEFAULT.osc.pan * 100) }),
+        knob({ label: 'Pulse', values: WIDTH, min: 1, max: 99, format: pct,
           get: () => Math.round(o().width * 100), put: (v) => { o().width = v / 100; },
-          show: () => o().wave === 'pulse' }),
+          reset: Math.round(DEFAULT.osc.width * 100), show: () => o().wave === 'pulse' }),
       );
 
       const flags = row(
@@ -631,65 +545,90 @@
       const unison = row(
         lab('Unison'),
         knobRow(
-          kn({ label: 'Voices', values: VOICES, min: 1, max: 8, format: String,
-            get: () => o().unison, put: (v) => { o().unison = v; } }),
-          kn({ label: 'Spread det.', values: SPREAD, min: 0, max: 100, format: ctText,
-            get: () => o().unison_detune, put: (v) => { o().unison_detune = v; } }),
-          kn({ label: 'Width', values: PERCENT_5, min: 0, max: 100, format: pct,
-            get: () => Math.round(o().unison_spread * 100), put: (v) => { o().unison_spread = v / 100; } }),
+          knob({ label: 'Voices', values: VOICES, min: 1, max: 8, format: String,
+            get: () => o().unison, put: (v) => { o().unison = v; }, reset: DEFAULT.osc.unison }),
+          knob({ label: 'Spread det.', values: SPREAD, min: 0, max: 100, format: ctText,
+            get: () => o().unison_detune, put: (v) => { o().unison_detune = v; }, reset: DEFAULT.osc.unison_detune }),
+          knob({ label: 'Width', values: PERCENT_5, min: 0, max: 100, format: pct,
+            get: () => Math.round(o().unison_spread * 100), put: (v) => { o().unison_spread = v / 100; },
+            reset: Math.round(DEFAULT.osc.unison_spread * 100) }),
         ),
       );
 
-      // Modulation: a row that opens by itself when something in it is on.
-      const modOn = () => o().sweep.on || o().vibrato.depth > 0 || o().tremolo.depth > 0;
-      const mod = make('div', 'pgs-mod');
-      mod.hidden = !modOn();
-      const modBtn = btn('Modulation', 'pgs-mod-btn');
-      modBtn.setAttribute('aria-expanded', String(!mod.hidden));
-      modBtn.addEventListener('click', () => {
-        mod.hidden = !mod.hidden;
-        modBtn.setAttribute('aria-expanded', String(!mod.hidden));
-      });
-      const sweepRow = row(
-        toggle('Sweep', () => o().sweep.on, (v) => { o().sweep.on = v; }),
-        kn({ label: 'To', values: TONE, min: 20, max: 20000, format: K.fmtFreq, parse: parseHz,
-          get: () => o().sweep.to, put: (v) => { o().sweep.to = v; } }),
-        seg('Sweep law', LAWS, () => o().sweep.law, (v) => { o().sweep.law = v; }),
-      );
-      const vibRow = row(
-        lab('Vibrato'),
-        knobRow(
-          kn({ label: 'Rate', values: LFO_HZ, min: 0, max: 20, format: hzText,
-            get: () => o().vibrato.rate, put: (v) => { o().vibrato.rate = v; } }),
-          kn({ label: 'Depth', values: LFO_CENTS, min: 0, max: 1200, format: ctText,
-            get: () => o().vibrato.depth, put: (v) => { o().vibrato.depth = v; } }),
-        ),
-      );
-      const tremRow = row(
-        lab('Tremolo'),
-        knobRow(
-          kn({ label: 'Rate', values: LFO_HZ, min: 0, max: 20, format: hzText,
-            get: () => o().tremolo.rate, put: (v) => { o().tremolo.rate = v; } }),
-          kn({ label: 'Depth', values: PERCENT_5, min: 0, max: 100, format: pct,
-            get: () => Math.round(o().tremolo.depth * 100), put: (v) => { o().tremolo.depth = v / 100; } }),
-        ),
-      );
-      mod.append(sweepRow, vibRow, tremRow);
-
-      const body = make('div', 'pgs-card-body');
-      body.append(row(lab('Wave'), wave), tableRow, pitch, flags, unison, modBtn, mod);
-      card.append(head, body);
-      tag(card, () => card.classList.toggle('is-off', !o().on));
-      return card;
+      return [row(lab('Wave'), wave), pitch, flags, unison];
     }
 
-    // The oscillator cards, rebuilt when their number or the patch's objects change.
-    function buildOscs() {
-      oscGrid.textContent = '';
-      patch.oscillators.forEach((_, i) => oscGrid.append(oscCard(i)));
-      oscCount = patch.oscillators.length;
-      emptyHint.hidden = oscCount > 0;
-      addBtn.disabled = oscCount >= 4;
+    function noiseParts() {
+      const n = () => patch.noise;
+      return [
+        row(lab('Color'), seg('Noise color', COLORS, () => n().color, (v) => { n().color = v; }, DEFAULT.noise.color)),
+        knobRow(knob({ label: 'Level', values: DB, min: -60, max: 0, format: K.fmtDb,
+          get: () => n().level_db, put: (v) => { n().level_db = v; }, reset: DEFAULT.noise.level_db })),
+        row(lab('Stereo'), seg('Noise stereo', STEREO, () => n().stereo, (v) => { n().stereo = v; }, DEFAULT.noise.stereo)),
+      ];
+    }
+
+    function impulseParts() {
+      const im = () => patch.impulse;
+      return [
+        knobRow(
+          knob({ label: 'Every', values: EVERY, min: 10, max: 5000, format: msText,
+            get: () => im().every_ms, put: (v) => { im().every_ms = v; }, reset: DEFAULT.impulse.every_ms }),
+          knob({ label: 'Level', values: DB, min: -60, max: 0, format: K.fmtDb,
+            get: () => im().level_db, put: (v) => { im().level_db = v; }, reset: DEFAULT.impulse.level_db }),
+        ),
+        row(lab('Polarity'), seg('Impulse polarity', POLARITY,
+          () => im().polarity, (v) => { im().polarity = v; }, DEFAULT.impulse.polarity)),
+      ];
+    }
+
+    // ---------- the source tabs ----------
+    // Shows the picked source's panel; the others are hidden.
+    function applySource() {
+      for (const key of Object.keys(panels)) panels[key].hidden = key !== src;
+      if (scroller) scroller.scrollTop = 0;
+    }
+    function pickSource(key) {
+      src = key;
+      try { sessionStorage.setItem(SRC_KEY, key); } catch { /* the tab is not kept */ }
+      applySource();
+      syncAll();
+    }
+    // A tab per source (WAI tabs: arrow keys move between them; Space is not taken).
+    function buildTabs() {
+      const list = make('div', 'pgs-tabs');
+      list.setAttribute('role', 'tablist');
+      list.setAttribute('aria-label', 'Signal source');
+      for (const [key, title] of SOURCES) {
+        const b = btn('', 'pgs-tab');
+        b.id = `pgs-tab-${key}`;
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-controls', `pgs-panel-${key}`);
+        const dot = make('span', 'pgs-dot');
+        dot.setAttribute('aria-hidden', 'true');
+        b.append(dot, make('span', '', title));
+        b.addEventListener('click', () => pickSource(key));
+        tag(b, () => {
+          const on = key === src;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', String(on));
+          b.tabIndex = on ? 0 : -1;
+          // The dot shows what sounds without opening the tab.
+          dot.classList.toggle('is-on', !!patch[key].on);
+          b.title = `${title} is ${patch[key].on ? 'on' : 'off'}`;
+        });
+        tabBtns[key] = b;
+        list.append(b);
+      }
+      list.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        const keys = SOURCES.map(([k]) => k);
+        const next = keys[(keys.indexOf(src) + (e.key === 'ArrowRight' ? 1 : keys.length - 1)) % keys.length];
+        pickSource(next);
+        tabBtns[next].focus();
+      });
+      return list;
     }
 
     // ---------- the page ----------
@@ -697,7 +636,7 @@
       box.textContent = '';
       box.classList.add('pgs-root');
 
-      // Top bar: presets, the file's length, rate, level, channels, seam, Live and Render.
+      // Top bar: presets, the file's length, rate, level, master, normalize, channels, seam, Live and Render.
       const bar = make('div', 'pgs-bar');
       presetBtn = btn('Presets ▾', 'pgs-presets');
       presetBtn.setAttribute('aria-haspopup', 'menu');
@@ -724,14 +663,19 @@
       presetWrap.append(presetBtn, menu);
 
       const levelKnob = knob({ label: 'Level', aria: 'Level, dBFS', values: DB, min: -80, max: 0, format: K.fmtDb,
-        get: () => patch.level_db, put: (v) => { patch.level_db = v; } });
-      const channels = seg('Channels', CHANNELS, () => patch.channels, (v) => { patch.channels = v; });
+        get: () => patch.level_db, put: (v) => { patch.level_db = v; }, reset: DEFAULT.level_db });
+      // The master gain after the render: louder past 0 dBFS clips (the info line says so).
+      const masterKnob = knob({ label: 'Master', aria: 'Master gain, dB', values: MASTER, min: -24, max: 24,
+        format: masterText, get: () => patch.master_db, put: (v) => { patch.master_db = v; },
+        reset: DEFAULT.master_db });
+      const channels = seg('Channels', CHANNELS, () => patch.channels, (v) => { patch.channels = v; },
+        DEFAULT.channels);
       const spacer = make('span', 'pgs-spacer');
 
       // Live on with a change not rendered yet renders it; turning it on alone does not.
       const liveToggle = toggle('Live', () => live, (v) => {
         live = v;
-        try { localStorage.setItem(LIVE_KEY, v ? '1' : '0'); } catch { /* the default next time */ }
+        try { sessionStorage.setItem(LIVE_KEY, v ? '1' : '0'); } catch { /* the default next time */ }
         if (!v) { clearTimeout(liveTimer); liveTimer = null; }
       }, () => {
         if (live && isDirty()) {
@@ -753,12 +697,14 @@
       bar.append(
         presetWrap,
         field('Length', select('Length', LENGTHS.map((s) => [s, `${s} s`]),
-          () => patch.seconds, (v) => { patch.seconds = Number(v); })),
-        field('Rate', select('Rate', RATES, () => patch.rate, (v) => { patch.rate = Number(v); })),
+          () => patch.seconds, (v) => { patch.seconds = Number(v); }, DEFAULT.seconds)),
+        field('Rate', select('Rate', RATES, () => patch.rate, (v) => { patch.rate = Number(v); }, DEFAULT.rate)),
         levelKnob,
+        masterKnob,
         toggle('Normalize', () => patch.normalize, (v) => { patch.normalize = v; }),
         channels,
-        field('Seam', select('Seam', SEAMS, () => patch.seam_ms, (v) => { patch.seam_ms = Number(v); })),
+        field('Seam', select('Seam', SEAMS, () => patch.seam_ms, (v) => { patch.seam_ms = Number(v); },
+          DEFAULT.seam_ms)),
         spacer,
         liveToggle,
         renderBtn,
@@ -768,68 +714,22 @@
       infoEl.setAttribute('aria-live', 'polite');
       setInfo('Not rendered yet. Press Render, or change a setting with Live on.');
 
-      // Sources (left): oscillators, then the noise / impulse / burst / staircase cards.
-      const oscHead = make('div', 'pgs-head');
-      addBtn = btn('+ Oscillator', 'pgs-add');
-      addBtn.addEventListener('click', () => {
-        if (patch.oscillators.length < 4) {
-          patch.oscillators.push(osc());
-          changed(true);
-        }
-      });
-      oscHead.append(make('span', 'pgs-section', 'Oscillators'), addBtn);
-      oscGrid = make('div', 'pgs-osc-grid');
-      emptyHint = make('p', 'pgs-empty', 'No oscillators: noise, impulses and staircases only.');
+      // The source panels: one of them shows at a time, in the scrolling region.
+      panels = {
+        osc: sourcePanel('osc', 'Oscillator', oscParts()),
+        noise: sourcePanel('noise', 'Noise', noiseParts()),
+        impulse: sourcePanel('impulse', 'Impulse', impulseParts()),
+      };
+      scroller = make('div', 'pgs-panel');
+      scroller.append(panels.osc, panels.noise, panels.impulse);
 
-      const noiseCard = fxCard('Noise', () => patch.noise.on, (v) => { patch.noise.on = v; }, [
-        row(lab('Color'), seg('Noise color', COLORS, () => patch.noise.color, (v) => { patch.noise.color = v; })),
-        knobRow(knob({ label: 'Level', values: DB, min: -60, max: 0, format: K.fmtDb,
-          get: () => patch.noise.level_db, put: (v) => { patch.noise.level_db = v; } })),
-        row(lab('Stereo'), seg('Noise stereo', STEREO, () => patch.noise.stereo, (v) => { patch.noise.stereo = v; })),
-      ]);
-      const impulseCard = fxCard('Impulse', () => patch.impulse.on, (v) => { patch.impulse.on = v; }, [
-        knobRow(
-          knob({ label: 'Every', values: EVERY, min: 10, max: 5000, format: msText,
-            get: () => patch.impulse.every_ms, put: (v) => { patch.impulse.every_ms = v; } }),
-          knob({ label: 'Level', values: DB, min: -60, max: 0, format: K.fmtDb,
-            get: () => patch.impulse.level_db, put: (v) => { patch.impulse.level_db = v; } }),
-        ),
-        row(lab('Polarity'), seg('Impulse polarity', POLARITY,
-          () => patch.impulse.polarity, (v) => { patch.impulse.polarity = v; })),
-      ]);
-      const burstCard = fxCard('Burst', () => patch.gate.on, (v) => { patch.gate.on = v; }, [
-        knobRow(
-          knob({ label: 'On', values: MS, min: 1, max: 5000, format: msText,
-            get: () => patch.gate.on_ms, put: (v) => { patch.gate.on_ms = v; } }),
-          knob({ label: 'Off', values: MS, min: 1, max: 5000, format: msText,
-            get: () => patch.gate.off_ms, put: (v) => { patch.gate.off_ms = v; } }),
-          knob({ label: 'Attack', values: MS, min: 1, max: 5000, format: msText,
-            get: () => patch.gate.attack_ms, put: (v) => { patch.gate.attack_ms = v; } }),
-          knob({ label: 'Release', values: MS, min: 1, max: 5000, format: msText,
-            get: () => patch.gate.release_ms, put: (v) => { patch.gate.release_ms = v; } }),
-        ),
-      ]);
-      const stairCard = fxCard('Staircase', () => patch.steps.on, (v) => { patch.steps.on = v; }, [
-        knobRow(
-          knob({ label: 'From', values: DB_FULL, min: -80, max: 0, format: K.fmtDb,
-            get: () => patch.steps.from_db, put: (v) => { patch.steps.from_db = v; } }),
-          knob({ label: 'To', values: DB_FULL, min: -80, max: 0, format: K.fmtDb,
-            get: () => patch.steps.to_db, put: (v) => { patch.steps.to_db = v; } }),
-          knob({ label: 'Step', values: STEP_DB, min: 1, max: 10, format: (v) => `${v} dB`,
-            get: () => patch.steps.step_db, put: (v) => { patch.steps.step_db = v; } }),
-          knob({ label: 'Every', values: MS, min: 1, max: 5000, format: msText,
-            get: () => patch.steps.step_ms, put: (v) => { patch.steps.step_ms = v; } }),
-        ),
-      ]);
-      const fx = make('div', 'pgs-fx-grid');
-      fx.append(noiseCard, impulseCard, burstCard, stairCard);
-
-      const sources = make('div', 'pgs-sources');
-      sources.append(oscHead, oscGrid, emptyHint, fx);
+      // The left column: the top bar, the info line, the source tabs, the panel. The scope is the right one.
+      const main = make('div', 'pgs-main');
+      main.append(bar, infoEl, buildTabs(), scroller);
       const bodyEl = make('div', 'pgs-body');
-      bodyEl.append(sources, scopeBox);
+      bodyEl.append(main, scopeBox);
 
-      box.append(bar, infoEl, bodyEl);
+      box.append(bodyEl);
 
       // The scope is optional: without it the sources take the whole width.
       scope = null;
@@ -837,8 +737,8 @@
         try { scope = V.SignalScope.create(scopeBox); } catch { scope = null; }
       }
       bodyEl.classList.toggle('no-scope', !scope);
-      syncAll(true);
-      loadTables();
+      applySource();
+      syncAll();
     }
 
     // A labelled top-bar control.

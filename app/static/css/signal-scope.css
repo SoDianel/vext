@@ -2,11 +2,13 @@
    the time span, Freeze) and a canvas that takes the rest of the box. The canvas reads its colours from
    the theme through the probes (.ss-probes), the same way the Analyzer's views do. */
 
+/* Its box is the designer's scope column (a flex column): it takes the column's height, and the plot
+   below its bar takes what the bar leaves, so the picture grows with the window. */
 .ss {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 8px;
-  height: 100%;
   min-width: 0;
   min-height: 0;
 }

@@ -96,11 +96,19 @@ First public release. VEXT began as a private tool and is now free software unde
   Plugin frame with a control bar and Bypass, Capture menu, IN / OUT and Auto-Balance, crash isolation, a
   memory limit and a gapless audio buffer with delay compensation.
 - **Playground** with three tabs: **Browser** (a plugin's editor and an in-app browser with audio capture),
-  **Audio** (waveform editor, record, play selection, loop, mute / compare, fades, Capture) and **Signal**
-  (test signals through a plugin).
+  **Signal** (test signals through a plugin: one oscillator with unison, noise and impulses, a master
+  volume, a full-height scope, and Record, which turns what comes out of the plugin into the Audio tab's
+  file) and **Audio** (waveform editor, record, play selection, loop, mute / compare, fades, Capture).
+  Alt + double-click resets a knob. The Signal values and the Audio tab's file and recordings are cleared
+  when VEXT closes.
 - **Analyzer**: live Spectrum, Spectrogram, Correlation, Imager, meters, a timeline and a settings window.
 - **Plugin pictures**: found automatically, chosen from candidates, from a link or from an in-app image
   search; crop in VEXT; learned vendor patterns.
+- **Database › Metadata**: researched data (links, descriptions, your edits, other vendors, categories,
+  pictures) is kept when a plugin is uninstalled and given back when it returns, at the same path or moved
+  (same name and format). Vendors and the categories you made are kept the same way. The Metadata pane lists all
+  metadata, installed or not, with filters (installed, no plugin, images without plugin, leftovers), search,
+  order, select all and **Clear selected (N)**; Vendors and Categories show kept entries as "No plugin" rows.
 - **Configuration**: audio devices (WASAPI, ASIO) and MIDI input, Automatic switches, a Storage page that
   measures and clears caches and backups, a Log section and failure reports.
 - **Desktop app**: Tauri 2 shell with the Python backend as a local sidecar (loopback only, per-launch token);
@@ -115,6 +123,8 @@ First public release. VEXT began as a private tool and is now free software unde
 - Licensed under GPL-3.0-or-later (earlier private commits were MIT). The builds bundle `pedalboard`
   (GPL-3.0). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 - The backend runs natively on Windows; Docker is gone.
+- Database: the Plugin types pane is gone (the two types are fixed), and Categories / Vendors sort by clicking a
+  column header (no order selector).
 
 ### Fixed
 
@@ -123,6 +133,8 @@ First public release. VEXT began as a private tool and is now free software unde
   the bundle carries a private C++ runtime.
 - Xfer plugins (OTT, DJMFilter) that would not open; the JUCE 7/8 click crash in plugin editors.
 - A blank first load while the backend was still starting.
+- "Could not find the WebView2 Runtime" on PCs that have WebView2's files but not its registry entry
+  (Windows Sandbox, some company images): VEXT now points WebView2 at the files it finds.
 
 [Unreleased]: https://github.com/SoDianel/vext/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/SoDianel/vext/releases/tag/v1.0.0

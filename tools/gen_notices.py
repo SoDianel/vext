@@ -9,6 +9,7 @@ dev tools) and rewrites the block between the two CRATES markers. The rest of th
 """
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -52,6 +53,7 @@ def main() -> int:
         return 1
     head, rest = text.split(BEGIN, 1)
     tail = rest.split(END, 1)[1]
+    head = re.sub(r"The \d+ crates linked", f"The {len(rows)} crates linked", head)
     NOTICES.write_text(head + block + tail, encoding="utf-8", newline="\n")
     print(f"{len(rows)} crates written")
     return 0

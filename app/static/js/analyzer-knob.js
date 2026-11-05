@@ -1,8 +1,9 @@
 // A knob for the Analyzer's fixed steps (VEXT.AnalyzerKnob). A 270-degree dial over a short list
 // of values: drag up or down (one step per 6 px), the wheel, or the arrow keys move it between
 // the steps; double-click (or Enter) types a value, which is clamped to min..max and kept as it
-// is (a value between two steps is drawn at the place it falls). The caller decides what a change
-// means: onChange gets the value, and the caller calls set() with the value it actually kept.
+// is (a value between two steps is drawn at the place it falls). With a `reset` value, Alt + double-click
+// sets the knob back to it (onChange gets it, no typing). The caller decides what a change means:
+// onChange gets the value, and the caller calls set() with the value it actually kept.
 (function () {
   const V = window.VEXT;
   if (!V || V.AnalyzerKnob) return;
@@ -64,6 +65,7 @@
     const max = Number.isFinite(o.max) ? o.max : values[last];
     const format = o.format || String;
     const parse = o.parse || parseText;
+    const reset = Number.isFinite(o.reset) ? o.reset : null;
     const name = o.ariaLabel || o.label || 'Value';
     let onChange = o.onChange;
     let value = Number.isFinite(o.value) ? o.value : values[0];
@@ -77,7 +79,8 @@
     el.className = 'ak';
     el.setAttribute('role', 'slider');
     el.tabIndex = 0;
-    el.title = 'Drag up or down, or use the wheel or the arrow keys. Double-click to type a value.';
+    el.title = 'Drag up or down, or use the wheel or the arrow keys. Double-click to type a value.'
+      + (reset !== null ? ' Alt + double-click: reset.' : '');
     el.setAttribute('aria-label', name);
     el.setAttribute('aria-valuemin', String(min));
     el.setAttribute('aria-valuemax', String(max));
@@ -217,6 +220,11 @@
     el.addEventListener('dblclick', (e) => {
       if (disabled) return;
       e.preventDefault();
+      if (e.altKey && reset !== null && !editor) {
+        if (value !== reset) commit(reset);
+        else draw();
+        return;
+      }
       startEdit();
     });
 

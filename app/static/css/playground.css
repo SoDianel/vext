@@ -251,10 +251,11 @@ button.pg-nav:disabled { opacity: 0.35; }
 }
 .pg-deck:not(.is-file) .pg-src-file,
 .pg-deck.is-file .pg-src-browser { display: none !important; }
-/* The Browser tab's Record (into the Audio tab): beside the note, with the time and a level bar while on. */
+/* The Browser's and the Signal's Record (into the Audio tab): beside the note, with the time and a level bar while on. */
 .pg-brec { display: inline-flex; flex: none; align-items: center; gap: 8px; }
 .pg-brec:empty,
 .pg-deck.is-file .pg-brec { display: none; }
+.pg-deck.is-signal .pg-brec:not(:empty) { display: inline-flex; }
 .pg-brec .pg-rec { min-width: 0; }
 .pg-brec-time { font-variant-numeric: tabular-nums; }
 .pg-brec-meter {

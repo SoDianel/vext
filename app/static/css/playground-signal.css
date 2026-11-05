@@ -1,6 +1,7 @@
-/* The Playground's Signal tab (js/playground-signal.js): the designer above the waveform. The panel is a
-   column: the designer scrolls inside itself, the waveform keeps about 38 % of the height below it.
-   Only palette tokens are used, so light and dark follow the theme without their own blocks. */
+/* The Playground's Signal tab (js/playground-signal.js). The panel holds the designer only, and the designer
+   never scrolls as a whole: its left column is the top bar, the info line, the source tabs and the tab
+   panel (the one that scrolls), and its right column is the scope, full height. Under 900 px the scope
+   goes under the column. Only palette tokens are used, so light and dark follow the theme without their own blocks. */
 
 .pg-panel-signal { display: flex; flex-direction: column; }
 .pg-signal {
@@ -9,24 +10,55 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
-  container-type: inline-size;   /* the layout below follows the designer's own width */
-}
-.pg-signal-wave {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  height: 38%;
-  min-height: 170px;
+  overflow: hidden;             /* the designer does not scroll: the tab panel does */
+  container-type: inline-size;  /* the layout below follows the designer's own width */
 }
 .pg-signal [hidden] { display: none !important; }
+
+/* ---------- the body: the column (left), the scope (right) ---------- */
+
+.pgs-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  min-height: 0;
+}
+.pgs-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.pgs-scope {
+  display: flex;
+  flex: 0 0 38%;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 280px;
+  min-height: 0;
+  padding: 12px;
+  border-left: 1px solid var(--separator);
+}
+.pgs-body.no-scope .pgs-scope { display: none; }
+/* A narrow designer (the Playground's plugins on the side, or a small window): the scope under the column. */
+@container (max-width: 899px) {
+  .pgs-body { flex-direction: column; }
+  .pgs-main { flex: 1 1 55%; }
+  .pgs-scope {
+    flex: 1 1 45%;
+    min-width: 0;
+    min-height: 220px;
+    border-left: 0;
+    border-top: 1px solid var(--separator);
+  }
+}
 
 /* ---------- the top bar ---------- */
 
 .pgs-bar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
+  position: relative;
+  z-index: 5;                   /* the Presets menu opens over the tabs and the panel */
   display: flex;
   flex: none;
   flex-wrap: wrap;
@@ -116,60 +148,72 @@
 .pgs-info.is-error { color: var(--danger); }
 .pgs-clip { color: var(--danger); font-weight: 600; }
 
-/* ---------- the body: the sources (left), the scope (right) ---------- */
+/* ---------- the source tabs (Oscillator · Noise · Impulse), styled like the Playground's tab strip ---------- */
 
-.pgs-body {
-  display: grid;
-  flex: none;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 38%);
-  align-items: start;
-  gap: 12px;
-  padding: 12px;
-}
-.pgs-body.no-scope { grid-template-columns: minmax(0, 1fr); }
-.pgs-body.no-scope .pgs-scope { display: none; }
-.pgs-sources { min-width: 0; }
-.pgs-scope { min-width: 0; }
-/* A narrow designer (the Playground's plugins on the side, or a small window): scope under the sources. */
-@container (max-width: 760px) {
-  .pgs-body { grid-template-columns: minmax(0, 1fr); }
-}
-
-.pgs-head {
+.pgs-tabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0 0 6px;
+  flex: none;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--separator);
+  background: color-mix(in srgb, var(--bg-subtle), var(--fg) 5%);
 }
-.pgs-section {
+.pg-signal button.pgs-tab {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 30px;
+  margin-bottom: -1px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--fg-3);
-  font-size: 11px;
+  font-size: 12.5px;
+  font-weight: 500;
   white-space: nowrap;
 }
-.pg-signal button.pgs-add {
-  height: 24px;
-  padding: 0 9px;
-  font-size: 12px;
+.pg-signal button.pgs-tab:hover:not(:disabled):not(.active) { background: var(--bg-hover); color: var(--fg-2); }
+.pg-signal button.pgs-tab:active { transform: none; }
+.pg-signal button.pgs-tab.active {
+  border-color: var(--separator);
+  background: var(--bg-subtle);
+  color: var(--fg);
+  /* covers the strip's bottom line under it */
+  box-shadow: 0 1px 0 var(--bg-subtle);
 }
-.pgs-empty {
-  margin: 0 0 10px;
-  color: var(--fg-3);
-  font-size: 12px;
+.pg-signal button.pgs-tab:focus-visible { outline-offset: -2px; }
+/* The on-dot: the accent when the source sounds, grey when it is off. */
+.pgs-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--separator-strong);
 }
-.pgs-osc-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 10px;
+.pgs-dot.is-on { background: var(--accent); }
+
+/* ---------- the tab panel: the region that scrolls ---------- */
+
+.pgs-panel {
+  display: block;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--bg-subtle);
 }
-.pgs-fx-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
+@container (max-width: 899px) {
+  .pgs-panel { min-height: 120px; }
 }
 
-/* ---------- cards ---------- */
+/* ---------- cards (each source's tab panel) ---------- */
 
 .pgs-card {
   min-width: 0;
@@ -192,23 +236,8 @@
   white-space: nowrap;
 }
 .pgs-card-body { min-width: 0; }
-/* A card that is Off is dimmed but stays editable (its header, the On switch, is not dimmed). */
+/* A source that is Off is dimmed but stays editable (its header, the On switch, is not dimmed). */
 .pgs-card.is-off > .pgs-card-body { opacity: 0.55; }
-.pg-signal button.pgs-x {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  box-shadow: none;
-  color: var(--fg-3);
-  font-size: 15px;
-  line-height: 1;
-}
-.pg-signal button.pgs-x:hover,
-.pg-signal button.pgs-x:focus-visible { background: var(--bg-hover); color: var(--fg); }
 
 .pgs-row {
   display: flex;
@@ -235,25 +264,6 @@
   font-size: 12px;
 }
 .pg-signal .pgs-seg button:disabled { opacity: 0.45; }
-
-/* Modulation: its own button, then the rows (open when something in it is on). */
-.pg-signal button.pgs-mod-btn {
-  height: 24px;
-  margin-top: 10px;
-  padding: 0 8px;
-  background: none;
-  box-shadow: none;
-  color: var(--fg-2);
-  font-size: 12px;
-}
-.pg-signal button.pgs-mod-btn::after { content: ' ▾'; color: var(--fg-3); }
-.pg-signal button.pgs-mod-btn[aria-expanded="true"]::after { content: ' ▴'; }
-.pgs-mod {
-  margin-top: 4px;
-  padding-top: 2px;
-  border-top: 1px solid var(--separator);
-}
-.pgs-mod .pgs-row { margin-top: 10px; }
 
 /* The confirmation about a recording (the app's modal, with a tick). */
 .pgs-ask { max-width: 360px; }

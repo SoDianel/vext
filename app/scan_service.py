@@ -11,6 +11,7 @@ from app import (
     enrichment,
     fl_database,
     full_scan,
+    metadata_archive,
     report,
     scanner,
     vendor_org,
@@ -178,7 +179,13 @@ def run_scan(log=print, include_full_scan: bool = False) -> dict:
         # (their file is in data/quarantine/, not its original location) but
         # aren't stale either — protect them from removal (see db.py docstring).
         protected = db.quarantined_host_paths(conn)
+        # Researched data of plugins about to go is kept (Database > Metadata) and given back when a
+        # plugin returns: reinstalled at the same path, or moved (same name and format).
+        archived = metadata_archive.archive_missing_plugins(conn, seen_host_paths | protected)
         removed = db.remove_stale_plugins(conn, seen_host_paths | protected)
+        restored = metadata_archive.restore_plugins(conn)
+        if archived or restored:
+            log(f"Metadata: kept {archived} removed plugin(s)' researched data, restored {restored} returning plugin(s)'")
         db.sync_plugin_vendor_info(conn)
         if removed:
             log(f"Removed {removed} plugin(s) no longer found on disk "
@@ -304,6 +311,10 @@ def run_scan(log=print, include_full_scan: bool = False) -> dict:
         cat_map = db.category_tags_by_plugin(conn)
         still_missing_vendor = sum(1 for r in rows if not r["vendor"])
         new_plugins = sum(1 for r in rows if r["id"] > max_id_before)
+        metadata_archive.restore_vendors(conn)
+        metadata_archive.archive_unused_vendors(conn)
+        metadata_archive.restore_categories(conn)
+        metadata_archive.archive_unused_categories(conn)
         db.prune_unused_reference(conn)
         proposed_quarantine = 0
         if db.get_setting(conn, "auto_propose_superseded", "1") == "1":

@@ -7,8 +7,8 @@ VEXT made before changing FL Studio's Plugin database (replaced thumbnails, entr
 taken out of FL's browser, browse-tree copies saved before a wipe). Deleting a
 backup is permanent, so the page says so and asks first.
 
-Never touched here: the catalog, VEXT's own plugin pictures (images\\), user
-wavetables, the Quarantine (its own tab), the file the Playground has open now and
+Never touched here: the catalog, VEXT's own plugin pictures (images\\), the
+Quarantine (its own tab), the file the Playground has open now and
 its recording, logs, and the web view's sign-ins and site settings (only its
 cache folders go). A file in use (the web view runs, a plugin plays) is left and
 counted as not freed.

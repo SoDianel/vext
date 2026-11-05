@@ -20,7 +20,7 @@ rule or a decision is missing here, ask in an issue.
    links, pictures.
 4. **Organize** files into `<Vendor>\` subfolders; flag corrupted files and AAX plugins (Pro Tools).
 5. **FL Studio Sync**: build FL Studio's plugin browser tree from the catalog (`app/fl_reorganize.py`).
-6. **Play**: host plugins (VST3, VST2, CLAP, Waves, 32-bit) in the Playground (Browser, Audio, Signal) and
+6. **Play**: host plugins (VST3, VST2, CLAP, Waves, 32-bit) in the Playground (Browser, Signal, Audio) and
    look at them in the Analyzer.
 
 ## Safety rules (non-negotiable)
@@ -67,6 +67,20 @@ rule or a decision is missing here, ask in an issue.
   bundles must not carry their own `msvcp140.dll`/`vcruntime140*.dll`** (a private copy once crashed every
   plugin): `vext-backend.spec` strips them and `tools\check_bundle.py` fails the build if one slips in. The
   app checks the runtime at start and shows a Repair banner (`app/runtime_check.py`).
+- **Metadata outlives the plugin** (`app/metadata_archive.py`, Database › Metadata): before a scan removes a
+  plugin it copies the researched fields into `metadata_archive`, and gives them back when the plugin returns
+  (same path, else one plugin with the same normalized name and format); a restore fills only what the new row
+  lacks, except manual edits. Vendors keep what the catalog can't bring back (KVR / Equipboard links, "no
+  page" marks, manual edits) before unused ones are pruned, and owner-made categories the same way. The Metadata
+  pane (`js/database-metadata.js`, `GET /api/metadata`) lists all of it, installed or not; Vendors and Categories
+  show kept entries via `?include_orphans=1` (the plugin editor never asks for them). Clearing an installed
+  plugin's metadata (`installed:<id>`) also resets its `*_source` to `scan` and its "investigated" marks. Spec:
+  `specs/2026-10-22-database-metadata-v2.md`. **A new researched column on `plugins` must be added
+  to `_PLUGIN_FIELDS` there**, or it is lost on uninstall again. Tests: `tools/test_metadata_archive.py`.
+- **WebView2 without its registry entry** (Windows Sandbox, some company images): the loader only looks in
+  the registry, so `lib.rs:use_unregistered_webview2` points `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` at the
+  newest installed runtime folder before the window opens. Tested in the Sandbox by hand (2026-10-21) and by
+  `tools/sandbox/sandbox_test.ps1`, which now opens the app and fails if no window appears.
 - **Paths and names**: nothing in the code may assume a particular user name, drive or folder layout. Use the
   environment (`USERPROFILE`, `SystemDrive`) or a Configuration setting.
 

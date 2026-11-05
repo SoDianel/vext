@@ -276,8 +276,72 @@ fn relaunch_elevated(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// WebView2 that is on the PC but not registered. The loader finds the runtime through EdgeUpdate's
+/// registry entry; Windows Sandbox and some company images ship the runtime's files without it, and
+/// the window then fails with "Could not find the WebView2 Runtime". When the registry has no entry
+/// but the files exist, point the loader at the newest version folder (the documented
+/// WEBVIEW2_BROWSER_EXECUTABLE_FOLDER). A registered runtime is left alone, and so is a folder the
+/// user already set.
+fn use_unregistered_webview2() {
+    use std::os::windows::process::CommandExt;
+    use std::path::PathBuf;
+    use std::process::{Command, Stdio};
+
+    if std::env::var_os("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER").is_some() {
+        return;
+    }
+    const CLIENT: &str = r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
+    let registered = [
+        format!(r"HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}}"),
+        format!(r"HKCU\{CLIENT}"),
+    ]
+    .iter()
+    .any(|key| {
+        Command::new("reg")
+            .args(["query", key, "/v", "pv"])
+            .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+            .stdin(Stdio::null())
+            .output()
+            .map(|o| o.status.success() && !String::from_utf8_lossy(&o.stdout).contains("0.0.0.0"))
+            .unwrap_or(false)
+    });
+    if registered {
+        return;
+    }
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Some(p) = std::env::var_os("ProgramFiles(x86)") {
+        roots.push(PathBuf::from(p).join(r"Microsoft\EdgeWebView\Application"));
+    }
+    if let Some(p) = std::env::var_os("LOCALAPPDATA") {
+        roots.push(PathBuf::from(p).join(r"Microsoft\EdgeWebView\Application"));
+    }
+    let mut best: Option<(Vec<u32>, PathBuf)> = None;
+    for root in roots {
+        let Ok(entries) = std::fs::read_dir(&root) else { continue };
+        for entry in entries.flatten() {
+            let dir = entry.path();
+            if !dir.join("msedgewebview2.exe").is_file() {
+                continue;
+            }
+            let version: Vec<u32> = entry
+                .file_name()
+                .to_string_lossy()
+                .split('.')
+                .map(|n| n.parse().unwrap_or(0))
+                .collect();
+            if best.as_ref().map_or(true, |(v, _)| version > *v) {
+                best = Some((version, dir));
+            }
+        }
+    }
+    if let Some((_, dir)) = best {
+        std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", dir);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    use_unregistered_webview2();
     let mut builder = tauri::Builder::default();
     // One VEXT at a time (owner, 2026-10-15): a second launch only brings the
     // open window forward and exits. Two used to fight over the backend (each
