@@ -98,6 +98,10 @@ rule or a decision is missing here, ask in an issue.
 - Work on topic branches and open pull requests. GitHub **Rebase and merge** is the only merge method;
   never use merge commits or squash merges. `main` has linear history: do not amend or force-push it.
   Rebase a topic branch onto `origin/main` when needed; force-with-lease is only for that topic branch.
+- **Version policy**: until the official release is announced, all work is 1.0.0. Do not bump the version;
+  add changes to the `[1.0.0]` section of `CHANGELOG.md` (final state, not the fixes along the way) and keep
+  `[Unreleased]` empty. The draft `v1.0.0` release is refreshed from `main` (delete the draft, dispatch
+  `release.yml`), never versioned up. `[Unreleased]` and `bump_version.ps1` start after the announcement.
 - `tools\bump_version.ps1` updates the manifests, lockfiles and changelog together;
   `tools\check_version.ps1` validates them. CI runs on every branch push and PR. Every `main` push runs
   `.github/workflows/build.yml`, retaining the installer, portable ZIP, checksums and `BUILD_PROVENANCE.json`

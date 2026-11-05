@@ -11,5 +11,5 @@
 - [ ] It follows the safety rules in AGENTS.md (no file change without a confirm step)
 - [ ] Colors come from the official palette
 - [ ] No personal data, build outputs or large binaries in the diff
-- [ ] I updated the docs (README, AGENTS.md, CHANGELOG.md under "Unreleased") if behavior changed
+- [ ] I updated the docs (README, AGENTS.md, CHANGELOG.md under the 1.0.0 section until the official release is announced) if behavior changed
 - [ ] I agree my contribution is released under GPL-3.0-or-later
