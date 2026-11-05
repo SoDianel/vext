@@ -107,7 +107,9 @@ class ReleasePipelineTests(unittest.TestCase):
 
     def test_version_bump_updates_all_locks_and_crlf_changelog(self):
         changelog = self.root / "CHANGELOG.md"
-        changelog.write_bytes(changelog.read_text().replace("\n", "\r\n").encode())
+        # The repo's [Unreleased] is empty until 1.0.0 is announced, so the test brings its own entry.
+        text = changelog.read_text().replace("## [Unreleased]\n", "## [Unreleased]\n\n### Fixed\n\n- A test entry.\n", 1)
+        changelog.write_bytes(text.replace("\n", "\r\n").encode())
         command = [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
                    str(self.root / "tools/bump_version.ps1"), "-Version", "1.0.1", "-Date", "2026-10-26"]
         before = {p: p.read_bytes() for p in self.root.rglob("*") if p.is_file() and ".git" not in p.parts}
