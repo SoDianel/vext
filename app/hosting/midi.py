@@ -74,7 +74,7 @@ def _caps_name(index: int) -> str | None:
     return caps.szPname.strip() or f"MIDI input {index + 1}"
 
 
-def list_inputs() -> list[dict]:
+def list_inputs(*, strict: bool = False) -> list[dict]:
     """The MIDI inputs connected now: [{index, id, name}]. `id` is the name, or
     "name #2" for a second device of the same name (two identical keyboards):
     that's what the midi_inputs setting stores."""
@@ -82,6 +82,8 @@ def list_inputs() -> list[dict]:
     for index in range(_winmm.midiInGetNumDevs()):
         name = _caps_name(index)
         if name is None:
+            if strict:
+                raise OSError(f"Could not inspect MIDI input {index}.")
             continue
         seen[name] = seen.get(name, 0) + 1
         out.append({"index": index, "id": name if seen[name] == 1 else f"{name} #{seen[name]}", "name": name})
@@ -152,7 +154,7 @@ class MidiInputs:
         with self._lock:
             return list(self._open_ids)
 
-    def open(self, wanted) -> dict:
+    def open(self, wanted, reserved_inputs=()) -> dict:
         """Opens the inputs `wanted` names ("*" = every connected input, a list
         of ids, or empty = none), closing the others. Returns {"open": [ids],
         "failed": [{"id", "error"}], "available": [ids]}."""
@@ -162,8 +164,9 @@ class MidiInputs:
         from app import db
         from app.config import DB_PATH
         with db.connect(DB_PATH) as conn:
-            reserved = db.get_setting(conn, "fl_launch_port", "Vext").casefold()
-        available = [d for d in available if d["name"].casefold() != reserved]
+            reserved = {db.get_setting(conn, "fl_launch_port", "VEXT").casefold()}
+        reserved.update(name.casefold() for name in reserved_inputs if isinstance(name, str))
+        available = [d for d in available if d["name"].casefold() not in reserved]
         if wanted == "*":
             targets = available
             missing = []

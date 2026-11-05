@@ -28,40 +28,42 @@ def _api():
     return api
 
 
-def _outputs() -> list[tuple[int, str]]:
+def _outputs(*, strict: bool = False) -> list[tuple[int, str]]:
     api = _api()
     names = []
     for index in range(api.midiOutGetNumDevs()):
         caps = Caps()
         if api.midiOutGetDevCapsW(index, ctypes.byref(caps), ctypes.sizeof(caps)) == 0:
             names.append((index, caps.name))
+        elif strict:
+            raise OSError(f"Could not inspect MIDI output {index}.")
     return names
 
 
-def list_outputs() -> list[str]:
-    return [name for _, name in _outputs()]
+def list_outputs(*, strict: bool = False) -> list[str]:
+    return [name for _, name in _outputs(strict=strict)]
 
 
 def send_sysex(name: str, message: bytes) -> None:
     indices = [index for index, candidate in _outputs() if candidate == name]
     if len(indices) != 1:
-        raise ValueError(f'MIDI output “{name}” is missing or ambiguous. Keep loopMIDI running and select its port in FL Studio Sync.')
+        raise ValueError(f"Cannot send to MIDI output {name!r}: the name is missing or ambiguous. Refresh devices and select a unique output.")
     api, handle = _api(), wintypes.HANDLE()
     if api.midiOutOpen(ctypes.byref(handle), indices[0], 0, 0, 0):
-        raise OSError("The MIDI output could not be opened. Check loopMIDI and other applications using it.")
+        raise OSError(f"Could not open MIDI output '{name}'. It may be busy or disconnected.")
     data = ctypes.create_string_buffer(message)
     header = Header(data=ctypes.cast(data, ctypes.c_void_p), length=len(message))
     prepared = False
     try:
         if api.midiOutPrepareHeader(handle, ctypes.byref(header), ctypes.sizeof(header)):
-            raise OSError("Could not prepare the FL MIDI command.")
+            raise OSError(f"Could not prepare a command for MIDI output '{name}'.")
         prepared = True
         if api.midiOutLongMsg(handle, ctypes.byref(header), ctypes.sizeof(header)):
-            raise OSError("Could not send the FL MIDI command.")
+            raise OSError(f"Could not send a command to MIDI output '{name}'.")
         deadline = time.monotonic() + 2
         while not header.flags & 1:
             if time.monotonic() > deadline:
-                raise OSError("The MIDI output timed out.")
+                raise OSError(f"MIDI output '{name}' timed out sending the command.")
             time.sleep(0.005)
     finally:
         api.midiOutReset(handle)

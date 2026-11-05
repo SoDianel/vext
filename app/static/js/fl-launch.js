@@ -130,14 +130,41 @@
         .map(name => `<option value="${esc(name)}"${name === setup.port ? ' selected' : ''}>${esc(name)}${setup.outputs.includes(name) ? '' : ' (not connected)'}</option>`).join('')}</select></label>
         <button type="button" data-fl-install>${setup.installed ? 'Update controller…' : 'Install controller…'}</button>
         <button type="button" data-fl-test${setup.installed ? '' : ' disabled'}>Test connection</button></div>
-        <p class="hint">Keep loopMIDI running. In FL’s MIDI settings (F10), enable the selected port and choose controller type VEXT. Open the Plugins Browser tab. The launcher bubble needs this connection; dragging a card into FL needs only a matching FL preset.</p>
+        <p class="hint" data-fl-loopback>${esc(setup.loopback.message)}</p>
+        <p class="hint" data-fl-managed>${esc(setup.loopback.managed?.message || 'Managed MIDI status unavailable.')}</p>
+        <p class="hint">VEXT creates its MIDI port at startup when the installed driver is available. For an external cable such as loopMIDI, keep its provider running. In FL’s MIDI settings (F10), enable the selected port and choose controller type VEXT. Open the Plugins Browser tab. The launcher bubble needs this connection; dragging a card into FL needs only a matching FL preset.</p>
         <p class="hint fl-launch-path">Controller: ${esc(setup.script_path)}</p>
         <p data-fl-message role="status">${esc(setup.update_available ? 'Controller update available. Update it, then reload the script in FL.' : setup.result.message || (setup.installed ? 'Controller installed. Test the connection with FL open.' : 'Install the controller to enable the launcher bubble.'))}</p>`;
-      panel.querySelector('[data-fl-port]').onchange = async event => {
+      const portControl = panel.querySelector('[data-fl-port]');
+      const testControl = panel.querySelector('[data-fl-test]');
+      const installControl = panel.querySelector('[data-fl-install]');
+      const diagnosticOutput = panel.querySelector('[data-fl-loopback]');
+      let savedPort = setup.port;
+      portControl.onchange = async event => {
+        const selected = event.target.value;
+        portControl.disabled = true;
+        testControl.disabled = true;
+        installControl.disabled = true;
         try {
-          await V.api('/api/settings/fl_launch_port', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: event.target.value }) });
-          say('MIDI output saved. Select the same input in FL.');
-        } catch (error) { say(error.message, true); }
+          await V.api('/api/settings/fl_launch_port', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: selected }) });
+          savedPort = selected;
+          try {
+            const diagnostic = await V.api('/api/midi/loopback');
+            diagnosticOutput.textContent = diagnostic.message;
+            panel.querySelector('[data-fl-managed]').textContent = diagnostic.managed?.message || 'Managed MIDI status unavailable.';
+            say('MIDI output saved. Select the same input in FL.');
+          } catch (_) {
+            diagnosticOutput.textContent = 'MIDI output saved, but device status could not be refreshed. Reopen setup to refresh.';
+            say('MIDI output saved, but device status could not be refreshed.', true);
+          }
+        } catch (error) {
+          portControl.value = savedPort;
+          say('Could not save MIDI output: ' + error.message, true);
+        } finally {
+          portControl.disabled = false;
+          testControl.disabled = !setup.installed;
+          installControl.disabled = false;
+        }
       };
       panel.querySelector('[data-fl-install]').onclick = async () => {
         if (!(await V.confirmDialog(`Install or update the VEXT controller?\n\n${setup.script_path}\n\nWrites the controller and its local connection settings. An existing VEXT controller is backed up. Other controllers are unchanged.`))) return;

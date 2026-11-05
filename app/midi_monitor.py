@@ -86,6 +86,7 @@ class MidiMonitor:
         self._tried_at = 0.0
         self._cfg = {"inputs": [], "channel": 0, "block_pitchbend": False}
         self._wake = threading.Event()
+        self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
     # ---- the ring ----
@@ -121,6 +122,7 @@ class MidiMonitor:
 
     def start(self) -> None:
         if self._thread is None:
+            self._stop.clear()
             self._thread = threading.Thread(target=self._loop, name="midi-monitor", daemon=True)
             self._thread.start()
 
@@ -129,7 +131,7 @@ class MidiMonitor:
         self._wake.set()
 
     def _loop(self) -> None:
-        while True:
+        while not self._stop.is_set():
             try:
                 self.reconcile()
             except Exception:  # noqa: BLE001 - the watcher must keep running
@@ -141,7 +143,7 @@ class MidiMonitor:
         cfg = self._settings()
         self._cfg = cfg
         wanted = cfg.get("inputs") or []
-        key = json.dumps(wanted)
+        key = json.dumps([wanted, cfg.get("reserved", [])])
         with self._io_lock:
             if not wanted or self._plugin_busy():
                 self._close_locked()
@@ -153,7 +155,7 @@ class MidiMonitor:
 
             if self._inputs is None:
                 self._inputs = midi.MidiInputs(self._on_message)
-            self._result = self._inputs.open(wanted)
+            self._result = self._inputs.open(wanted, cfg.get("reserved", []))
             self._opened_for = key
             self._tried_at = time.monotonic()
         # A session may have started while the inputs were opening: give them back at once.
@@ -175,6 +177,12 @@ class MidiMonitor:
             self._close_locked()
 
     def shutdown(self) -> None:
+        self._stop.set()
+        self._wake.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+            if not self._thread.is_alive():
+                self._thread = None
         with self._io_lock:
             self._close_locked()
             if self._inputs is not None:
