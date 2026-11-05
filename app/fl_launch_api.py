@@ -4,9 +4,8 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from app import applog, db, fl_launch
+from app import applog, db, fl_launch, midi_loopback, virtual_midi_service
 from app.config import DB_PATH
-from app.hosting.midi_output import list_outputs
 
 router = APIRouter(prefix="/api/fl-launch")
 
@@ -25,7 +24,9 @@ class InstallBody(BaseModel):
 def setup():
     with db.connect(DB_PATH) as conn:
         value = fl_launch.setup_info(conn)
-    value["outputs"] = list_outputs()
+    value["loopback"] = midi_loopback.inspect(value["port"])
+    value["loopback"]["managed"] = virtual_midi_service.status()
+    value["outputs"] = value["loopback"]["outputs"]
     return value
 
 

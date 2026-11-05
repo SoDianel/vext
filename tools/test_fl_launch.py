@@ -149,7 +149,7 @@ def test_pending_requests_are_not_repeated_and_replies_must_match_secret(catalog
     calls = []
     monkeypatch.setattr(midi_output, "send_sysex", lambda *args: calls.append(args))
     result = launch.send(conn)
-    assert calls[0][0] == "Vext"
+    assert calls[0][0] == "VEXT"
     assert len(calls[0][1]) == 40
     with pytest.raises(ValueError, match="Wait"):
         launch.send(conn)

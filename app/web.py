@@ -26,7 +26,7 @@ from app.config import FIXED_LOCATION_KEYS
 from app import scan_service, storage  # storage: Configuration > Storage
 from app.scan_service import run_scan
 from app import audio_setup, host_worker  # Configuration > Audio, MIDI
-from app import midi_monitor, sysmem  # the toolbar's metrics
+from app import midi_monitor, sysmem, virtual_midi_service  # the toolbar's metrics
 from app import runtime_check  # Microsoft's C++ runtime: checked at start, Repair
 from app import folder_access  # write access to a protected plugin folder, asked per folder
 from app import playground_audio  # the Playground's Audio tab
@@ -483,8 +483,9 @@ def _midi_settings() -> dict:
             inputs = [i for i in json.loads(raw or "[]") if isinstance(i, str)]
         except ValueError:
             inputs = []
+    owned = virtual_midi_service.status()["owned"]
     return {"inputs": inputs, "channel": int(channel) if str(channel).isdigit() else 0,
-            "block_pitchbend": bend == "1"}
+            "block_pitchbend": bend == "1", "reserved": ["VEXT"] if owned else []}
 
 
 def _auto_balance() -> bool:
@@ -509,12 +510,22 @@ plugin_host.configure(audio=_playback_settings, midi=_midi_settings, memory=_mem
 
 @app.on_event("startup")
 def _start_midi_monitor():
+    state = virtual_midi_service.start()
+    if state["owned"] and state["state"] == "active":
+        try:
+            with db.connect(DB_PATH) as conn:
+                old = db.get_setting(conn, "fl_launch_port", "VEXT")
+                if old in ("Vext", "VEXT Bridge"):
+                    db.set_setting(conn, "fl_launch_port", "VEXT")
+        except Exception as exc:  # Port creation must not stop the application.
+            logbuf.add("backend", f"Could not update the MIDI output selection: {exc}", "warning")
     midi_watch.start()
 
 
 @app.on_event("shutdown")
 def _stop_midi_monitor():
     midi_watch.shutdown()
+    virtual_midi_service.stop()
 
 
 @app.get("/api/midi/activity")
@@ -1380,6 +1391,17 @@ def audio_test():
     return audio_setup.test(_playback_settings())
 
 
+@app.get("/api/midi/loopback")
+def midi_loopback_status():
+    from app import fl_launch, midi_loopback
+    with db.connect(DB_PATH) as conn:
+        port = db.get_setting(conn, "fl_launch_port", "VEXT")
+        result = midi_loopback.inspect(port)
+        result["managed"] = virtual_midi_service.status()
+        result["fl_connection"] = fl_launch.connection(conn)
+    return result
+
+
 @app.get("/api/midi/devices")
 def midi_devices():
     """MIDI inputs connected now ([{id, name}]) and, while a plugin is open,
@@ -1392,9 +1414,10 @@ def midi_devices():
         raise HTTPException(409, f"Couldn't list the MIDI inputs: {e}")
     opened = plugin_host.open_midi_inputs()
     with db.connect(DB_PATH) as conn:
-        reserved = db.get_setting(conn, "fl_launch_port", "Vext")
+        reserved = db.get_setting(conn, "fl_launch_port", "VEXT")
     return {"inputs": inputs, "open": opened["open"] if opened else None,
-            "failed": opened["failed"] if opened else None, "settings": _midi_settings(), "reserved": reserved}
+            "failed": opened["failed"] if opened else None, "settings": _midi_settings(), "reserved": reserved,
+            "reserved_inputs": list(dict.fromkeys([reserved, *_midi_settings()["reserved"]]))}
 
 
 class FlCloudBody(BaseModel):
@@ -2467,7 +2490,7 @@ _SETTINGS_DEFAULTS = {
     "quarantine_dir": QUARANTINE_DIR,
     # Empty = auto-detect (registry, then the standard folder). Set = the user's own install folder.
     "fl_studio_root": "",
-    "fl_launch_port": "Vext",
+    "fl_launch_port": "VEXT",
     # 1 = the FL quick launcher bubble is shown (desktop app; only while FL Studio is set up).
     "fl_bubble_enabled": "0",
     # 1 = after each scan, propose quarantine for copies a better format/bitness supersedes.

@@ -56,6 +56,8 @@
   let configBusy = false;
   let midi = null;            // GET /api/midi/devices
   let midiError = '';
+  let loopback = null;
+  let midiRequest = 0;
   let decoding = null;        // GET /api/playground/decoding
   let decodingError = '';
   let test = null;            // last Test result
@@ -220,8 +222,8 @@
     }
     html += '<div class="aud-midi-list">';
     for (const d of connected) {
-      if (d.name.toLowerCase() === (midi.reserved || '').toLowerCase()) {
-        html += `<label class="aud-check"><input type="checkbox" disabled> ${esc(d.name)} <span class="hint">(reserved for FL Studio)</span></label>`;
+      if ((midi.reserved_inputs || [midi.reserved || '']).some(name => name.toLowerCase() === d.name.toLowerCase())) {
+        html += `<label class="aud-check"><input type="checkbox" disabled> ${esc(d.name)} <span class="hint">(reserved for MIDI commands)</span></label>`;
         continue;
       }
       const on = all || saved.includes(d.id);
@@ -231,6 +233,13 @@
       html += `<label class="aud-check is-missing"><input type="checkbox" data-midi-id="${esc(id)}" checked> ${esc(id)} <span class="hint">(not connected)</span></label>`;
     }
     return html + '</div>';
+  }
+
+  function loopbackHtml() {
+    if (!loopback) return '<p class="hint">Checking MIDI devices...</p>';
+    return `<p role="status">Command output: ${esc(loopback.port)}: ${esc(loopback.message)}</p>
+      <p class="hint">${esc(loopback.managed?.message || 'Managed MIDI status unavailable.')}</p>
+      <p class="hint">Matching inputs: ${esc(String(loopback.input_matches ?? 'unknown'))}; outputs: ${esc(String(loopback.output_matches ?? 'unknown'))}. A matching pair does not prove a working cable. FL controller: ${esc(loopback.fl_connection?.message || 'unavailable')}.</p>`;
   }
 
   function midiStatusHtml() {
@@ -327,6 +336,13 @@
 `,
       midi: `
         <div class="subsection first">
+          <h3>Virtual MIDI</h3>
+          <div class="aud-loopback">${loopbackHtml()}</div>
+          <button type="button" data-act="refresh-midi">Refresh</button>
+          <button type="button" data-act="fl-setup">FL controller setup</button>
+          <p class="hint">VEXT creates its MIDI port at startup when the installed driver is available. Other apps select the VEXT input. If unavailable, select an external output in FL controller setup; a provider such as loopMIDI must remain running. Configuring FL's controller is a separate step.</p>
+        </div>
+        <div class="subsection">
           <h3>MIDI input</h3>
           <p class="hint">MIDI keyboards play the instrument open in the Playground (and effects that take MIDI). Changes apply at once.</p>
           <div class="aud-midi">${midiListHtml()}</div>
@@ -393,6 +409,7 @@ ${parts[part] || parts.audio}
     set('.aud-safe-ms', fmtMs(SAFE_EXTRA * blockMs(values.audio_block_size, values.audio_sample_rate)));
     set('.aud-latency-box', latencyHtml());
     set('.aud-test-result', testHtml());
+    set('.aud-loopback', loopbackHtml());
     set('.aud-midi', midiListHtml());
     set('.aud-midi-status', midiStatusHtml());
     const safe = root.querySelector('#aud-safe');
@@ -436,13 +453,16 @@ ${parts[part] || parts.audio}
   }
 
   async function loadMidi() {
-    try {
-      midi = await V.api('/api/midi/devices');
-      midiError = '';
-    } catch (err) {
-      midi = null;
-      midiError = errText(err);
-    }
+    const request = ++midiRequest;
+    let nextLoopback, nextMidi, nextError = '';
+    try { nextLoopback = await V.api('/api/midi/loopback'); }
+    catch (_) { nextLoopback = { port: 'unknown', message: 'MIDI diagnostics unavailable.' }; }
+    try { nextMidi = await V.api('/api/midi/devices'); }
+    catch (err) { nextMidi = null; nextError = errText(err); }
+    if (request !== midiRequest) return;
+    loopback = nextLoopback;
+    midi = nextMidi;
+    midiError = nextError;
   }
 
   async function put(key, value) {
@@ -602,6 +622,8 @@ ${parts[part] || parts.audio}
           await fitRate();
         } else if (btn.dataset.act === 'refresh-midi') {
           await loadMidi();
+        } else if (btn.dataset.act === 'fl-setup') {
+          V.navigate('config', { pane: 'daws' });
         } else if (btn.dataset.act === 'test') {
           await runTest();
         }

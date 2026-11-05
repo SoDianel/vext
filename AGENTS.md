@@ -248,3 +248,7 @@ release must not open the index. Category/Vendor rows, type scope, text search a
 Cards/List/Compact views filter the same full FST snapshot locally; changing a group must not start a
 new filesystem scan. Keep the sidebar list visible (no dropdowns), preserve exact-key load/drag in every
 view, and retain per-launch snapshot and confirmation validation.
+
+## Local MIDI startup evaluation
+
+The local startup adapter uses the installed teVirtualMIDI driver and creates `VEXT` only in the backend lifespan. Its code is present for this authorized evaluation, but the vendor's distribution terms still require written clearance; never package SDK binaries or assume this local build is distributable. Reserve both the owned port and the selected command output from musical input workers. See `specs/2026-11-05-midi-loopback.md`.

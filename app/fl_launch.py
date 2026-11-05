@@ -164,7 +164,7 @@ def setup_info(conn) -> dict:
             "installed": (destination / "device_VEXT.py").is_file()
             and _read_json(destination / "vext_config.json") == config and bool(config),
             "update_available": script_path.is_file() and script_path.read_bytes() != SCRIPT.read_bytes(),
-            "port": db.get_setting(conn, "fl_launch_port", "Vext"), "result": status()}
+            "port": db.get_setting(conn, "fl_launch_port", "VEXT"), "result": status()}
 
 
 def install(conn, expected_path: str) -> dict:

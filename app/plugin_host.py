@@ -1120,7 +1120,7 @@ class _Session:
         _release_midi()
         try:
             self.command("midi_inputs", timeout=10, inputs=midi["inputs"], channel=midi["channel"],
-                         block_pitchbend=midi.get("block_pitchbend", False))
+                         block_pitchbend=midi.get("block_pitchbend", False), reserved=midi.get("reserved", []))
         except HostError:
             pass
         with self.lock:
@@ -2060,7 +2060,7 @@ def apply_midi_settings() -> None:
     for s in sessions:
         try:
             s.command("midi_inputs", timeout=10, inputs=midi["inputs"], channel=midi["channel"],
-                      block_pitchbend=midi.get("block_pitchbend", False))
+                      block_pitchbend=midi.get("block_pitchbend", False), reserved=midi.get("reserved", []))
         except HostError:
             pass
 

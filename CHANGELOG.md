@@ -14,6 +14,8 @@ and its date is the day it was last updated.
 
 ### Added
 
+- **Virtual MIDI**: creates the `VEXT` port at startup when the installed virtual MIDI driver is
+  available, with ownership status, output availability and external setup guidance.
 - **Catalog**: scans FL Studio native plugins, VST3, VST2, CLAP, Waves and AAX folders (read-only), with stable
   plugin IDs across rescans, vendor resolution and canonical vendor names, categories, types, descriptions,
   store / KVR / Equipboard links, and a full-drive scan for plugins installed somewhere unexpected.
@@ -40,7 +42,7 @@ and its date is the day it was last updated.
 - **Self-contained installer** (per-user): brings WebView2 and Microsoft's Visual C++ runtimes if the PC lacks
   them, and an in-app **Repair** for the runtimes. A portable folder with the same files.
 - **FL Studio launch**: load an exact FL preset from a plugin, using a VEXT controller script and a
-  configurable loopMIDI output. FL Studio Sync installs the controller and tests the connection; its light shows
+  configurable MIDI output (`VEXT` or an external cable). FL Studio Sync installs the controller and tests the connection; its light shows
   FL closed, running or connected, and click-to-load stays off until the controller sends a fresh, authenticated
   heartbeat. Drag Browse and Playground cards into FL's Channel Rack or mixer slots; several matching presets
   ask which one. Missing or quarantined plugins cannot load, and the FL command port is kept out of the

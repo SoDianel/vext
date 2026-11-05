@@ -1899,7 +1899,7 @@ class _MidiRouter:
                 self._center_bend = True
             self.block_pitchbend = bool(on)
 
-    def set_inputs(self, wanted, channel: int) -> dict:
+    def set_inputs(self, wanted, channel: int, reserved=()) -> dict:
         """Opens the hardware inputs `wanted` ("*" = all, a list of ids, empty
         = none) and sets the channel filter. Returns {open, failed, available}."""
         from app.hosting import midi
@@ -1910,7 +1910,7 @@ class _MidiRouter:
             return self.inputs
         if self._inputs is None:
             self._inputs = midi.MidiInputs(self.push)
-        self.inputs = self._inputs.open(wanted)
+        self.inputs = self._inputs.open(wanted, reserved)
         return self.inputs
 
     def shutdown(self) -> None:
@@ -3138,7 +3138,7 @@ def _commands(plugin, player: Player, close_editor: threading.Event) -> None:
                 player.midi.panic()
             elif cmd == "midi_inputs":
                 player.midi.set_block_pitchbend(bool(msg.get("block_pitchbend")))
-                emit("midi_inputs", **player.midi.set_inputs(msg.get("inputs"), int(msg.get("channel") or 0)))
+                emit("midi_inputs", **player.midi.set_inputs(msg.get("inputs"), int(msg.get("channel") or 0), msg.get("reserved") or []))
             elif cmd == "tone":
                 emit("tone", audio=player.test_tone())
             elif cmd == "tap":  # the analysis ring's file (app/analysis_tap.py)
