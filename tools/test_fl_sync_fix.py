@@ -258,6 +258,30 @@ def test_apply_at_64_then_the_second_run_finds_the_thumbnails_current(conn):
     assert pics["added"] == 0 and pics["updated"] == 0 and pics["current"] >= 1
 
 
+def test_apply_marks_ticked_root_entries_unorganizable(conn):
+    conn.execute("INSERT INTO plugins (name, normalized_name, format, host_path, scanned_at) "
+                 "VALUES ('Cloudy', 'cloudy', 'VST3', 'C:\\VST\\Cloudy.vst3', '2026-10-20')")
+    cloudy = pid(conn, "Cloudy")
+    db.set_fl_link(conn, "Cloudy FL", cloudy)
+    conn.commit()
+    new = INSTALLED / "Effects" / "New"
+    new.mkdir(parents=True, exist_ok=True)
+    (new / "Cloudy FL.nfo").write_text(
+        "ps_name=Cloudy FL\nps_files=1\nps_file_filename_0=C:\\nowhere\\cloudy.vst3\nps_file_type_0=1\n",
+        encoding="utf-8")
+    (new / "Cloudy FL.fst").write_bytes(b"FST")
+    try:
+        entry = next(x for x in fr.propose(conn, "vendor")["Effects"]["entries"] if x["key"] == "Cloudy FL")
+        assert entry["matched"] is True and not entry["destinations"]  # root-bound, but VEXT knows it
+
+        summary = fr.apply(conn, "vendor", sections=["Effects"], unorganizable={"Effects": ["Cloudy FL", "no such key"]})
+        assert summary["Effects"]["unorganizable"] == 1
+        assert conn.execute("SELECT fl_cloud FROM plugins WHERE id=?", (cloudy,)).fetchone()[0] == 1
+        assert "c:\\vst\\cloudy.vst3" in db.fl_cloud_host_paths(conn)
+    finally:
+        shutil.rmtree(new, ignore_errors=True)
+
+
 def test_apply_refuses_a_height_that_is_not_standard(conn):
     with pytest.raises(ValueError):
         fr.apply(conn, "vendor", thumb_height=100)

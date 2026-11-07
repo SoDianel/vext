@@ -21,6 +21,27 @@ All notable changes to VEXT are documented here. The format follows
   menu of categories and vendors (seven at a time, scroll for more); pick one to open a picture grid of its
   plugins, then click a plugin to send it to FL or drag it into FL. Needs FL Studio and the VEXT controller set up.
 
+### Added
+
+- VEXT watches the plugin folders and scans by itself after an install, update or uninstall (Configuration ›
+  General, on by default). New plugins appear in Scan › Plug-ins with a toast.
+- Pro Tools in Configuration › DAWs: detected automatically, or set its folder.
+
+### Changed
+
+- Scan › Plug-ins shows one row per plugin, with a badge for each copy (VST, VST2, VST3, AAX, CLAP, x86 for
+  32-bit). Click a badge for that copy's details. Copies are matched more reliably: format and bitness tags and
+  the vendor's name in front of the plugin name no longer keep them apart.
+- Suggestions to clean up obsolete formats and older copies are now optional and off by default
+  (Configuration › General, Cleanup suggestions).
+- AAX plugins are suggested for removal only when Pro Tools isn't installed, and a VST3 or CLAP copy no longer
+  counts as replacing an AAX one.
+- "Mark as FL Cloud" is now "Mark as Unorganizable" (details, ⋯ menu, badge, dashboard): same pin, no longer
+  tied to FL Cloud by name.
+- FL Studio Sync's "Left at the root" list has an Unorganizable tick for plugins VEXT knows; Apply marks them
+  as part of the run.
+- The FL Cloud, FL Synced and FL Native tag filters are gone from Scan › Plug-ins (FL Native is already a format).
+
 ### Fixed
 
 - Keep the FL bubble logo anchored during hover by retaining one drawing surface and one logo.

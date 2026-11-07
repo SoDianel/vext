@@ -1,6 +1,8 @@
 """The actual scan pipeline, as a plain function so both the CLI (app/main.py)
 and the web app (app/web.py, "Rescan now" button) can trigger it identically."""
 
+import threading
+import time
 from pathlib import Path
 
 from app import (
@@ -17,13 +19,65 @@ from app import (
     vendor_org,
     vendors_catalog,
 )
-from app.config import DATABASE_MD_PATH, DB_PATH, FL_PLUGIN_DB_ROOT
+from app.config import (
+    DATABASE_MD_PATH,
+    DB_PATH,
+    FL_PLUGIN_DB_ROOT,
+    detect_pro_tools_root,
+    pro_tools_installed,
+)
+
+# One scan at a time: a scan asked for while another runs (the Scan button during the
+# folder watcher's, app/plugin_watch.py) waits for it instead of interleaving writes.
+_scan_lock = threading.Lock()
+last_scan_finished = 0.0  # time.monotonic() of the last scan's end (the watcher skips changes it already saw)
+
+# Off unless the owner turns it on (Configuration > General, "Cleanup suggestions"): a copy in
+# an older format or bitness is often kept on purpose, for a DAW that only loads that format.
+SUGGEST_OBSOLETE_KEY = "suggest_obsolete_formats"
+
+AAX_REVIEW_REASON = "AAX plugin and Pro Tools isn't installed (AAX only loads in Pro Tools): candidate for removal"
+_OLD_AAX_REASONS = {"Pro Tools/AAX format — Pro Tools not part of this workflow, candidate for removal"}
+
+
+def suggest_obsolete(conn) -> bool:
+    return db.get_setting(conn, SUGGEST_OBSOLETE_KEY, "0") == "1"
+
+
+def pro_tools_present(conn) -> bool:
+    folder, _ = detect_pro_tools_root(db.get_setting(conn, "pro_tools_root", ""))
+    return pro_tools_installed(folder)
+
+
+def apply_aax_rule(conn, pro_tools: bool) -> int:
+    """AAX plugins are flagged for review (a removal suggestion in Actions > Cleanup)
+    only while Pro Tools isn't installed: nothing else loads them. Run after every scan
+    and when the Pro Tools folder setting changes. Other reasons on the row are kept.
+    Returns how many rows changed."""
+    changed = 0
+    for pid, status, reason in conn.execute(
+            "SELECT id, status, status_reason FROM plugins WHERE format='AAX'").fetchall():
+        parts = [x for x in (reason or "").split("; ")
+                 if x and x != AAX_REVIEW_REASON and x not in _OLD_AAX_REASONS]
+        new_status = status
+        if pro_tools:
+            if status == "needs_review" and not parts:
+                new_status = "ok"
+        else:
+            parts.append(AAX_REVIEW_REASON)
+            if status == "ok":
+                new_status = "needs_review"
+        new_reason = "; ".join(parts) or None
+        if (new_status, new_reason) != (status, reason):
+            conn.execute("UPDATE plugins SET status=?, status_reason=? WHERE id=?", (new_status, new_reason, pid))
+            changed += 1
+    return changed
 
 
 def _propose_superseded(conn) -> int:
     """Proposes (never applies) quarantine for every copy that a better format or
     a 64-bit/newer copy supersedes. The owner confirms each one in the Actions tab,
-    the same as any other action. Skips FL Cloud plugins and anything that already
+    the same as any other action. Skips Unorganizable plugins and anything that already
     has an open action."""
     rows = [r for r in db.all_plugins(conn) if not r["fl_cloud"]]
     proposed = 0
@@ -109,7 +163,20 @@ def catalog_one(conn, host_path: str) -> int:
     return plugin_id
 
 
+def scan_running() -> bool:
+    return _scan_lock.locked()
+
+
 def run_scan(log=print, include_full_scan: bool = False) -> dict:
+    global last_scan_finished
+    with _scan_lock:
+        try:
+            return _run_scan(log, include_full_scan)
+        finally:
+            last_scan_finished = time.monotonic()
+
+
+def _run_scan(log, include_full_scan: bool) -> dict:
     db.init_db(DB_PATH)
     with db.connect(DB_PATH) as conn:
         db.seed_categories(conn)
@@ -145,6 +212,7 @@ def run_scan(log=print, include_full_scan: bool = False) -> dict:
         ignored_count = 0
         fl_cloud_paths = db.fl_cloud_host_paths(conn)
 
+        pro_tools = pro_tools_present(conn)
         found = 0
         flagged = 0
         fl_name_fixed = 0
@@ -166,10 +234,13 @@ def run_scan(log=print, include_full_scan: bool = False) -> dict:
                 fl_name_fixed += name_fixed
                 seen_host_paths.add(rec["host_path"])
                 found += 1
-                if rec["status"] != "ok":
+                if rec["status"] != "ok" or (rec["format"] == "AAX" and not pro_tools):
                     flagged += 1
             per_root.append({"format": root.format, "path": root.host_path, "count": len(records)})
             log(f"[{root.format}] {root.host_path}: {len(records)} plugin(s)")
+        apply_aax_rule(conn, pro_tools)
+        if not pro_tools and any(r.format == "AAX" for r in all_roots):
+            log("Pro Tools isn't installed: AAX plugins are flagged as candidates for removal (Actions > Cleanup)")
         if fl_name_fixed:
             log(f"FL Studio cross-reference: corrected {fl_name_fixed} plugin name(s) our own metadata got wrong")
         if ignored_count:
@@ -317,7 +388,7 @@ def run_scan(log=print, include_full_scan: bool = False) -> dict:
         metadata_archive.archive_unused_categories(conn)
         db.prune_unused_reference(conn)
         proposed_quarantine = 0
-        if db.get_setting(conn, "auto_propose_superseded", "1") == "1":
+        if suggest_obsolete(conn):
             proposed_quarantine = _propose_superseded(conn)
         if proposed_quarantine:
             log(f"Proposed quarantine for {proposed_quarantine} older or lower-ranked copy(ies). Review them in the Actions tab.")
@@ -327,6 +398,7 @@ def run_scan(log=print, include_full_scan: bool = False) -> dict:
     summary = {
         "found": found,
         "new": new_plugins,
+        "removed": removed,
         "flagged": flagged,
         "vendor_filled_installer": vendor_filled,
         "vendor_filled_research": enrich_result["filled"],

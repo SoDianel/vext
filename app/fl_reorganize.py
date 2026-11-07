@@ -905,7 +905,8 @@ def _backup_and_recreate(section_dir: Path, save_backup: bool) -> Path | None:
 def apply(conn, mode: str, overrides: dict[str, dict[str, str]] | None = None,
           sections: list[str] | None = None, dangerous_wipe: bool = False,
           save_backup: bool = True, scope: str = "new", pictures: bool = True,
-          replace_thumbnails: bool = False, thumb_height: int = THUMB_HEIGHT) -> dict:
+          replace_thumbnails: bool = False, thumb_height: int = THUMB_HEIGHT,
+          unorganizable: dict[str, list[str]] | None = None) -> dict:
     """Executes a freshly-recomputed plan (never trusts one built earlier —
     the filesystem could have changed since). `overrides` is per-section,
     same shape as propose()'s. `sections` restricts the run to just
@@ -969,6 +970,12 @@ def apply(conn, mode: str, overrides: dict[str, dict[str, str]] | None = None,
     backing them up. `thumb_height` is the one global size (a key of
     THUMB_SIZES: 256 / 128 / 64).
 
+    `unorganizable` ({section: [entry key, ...]}, the owner's ticks in the
+    preview's "Left at the root" list) marks those entries' matched VEXT
+    plugins Unorganizable (db.set_fl_cloud) as part of the run — no separate
+    step. A plugin with an unresolved action is skipped, as in the plugin
+    sheet. The browse tree is filed the same either way.
+
     See the module docstring for the full pipeline. Returns a per-section
     summary."""
     if scope not in _SCOPES:
@@ -988,9 +995,18 @@ def apply(conn, mode: str, overrides: dict[str, dict[str, str]] | None = None,
     staged_thumbnails: dict[str, str] = {}
     pics = _Pictures(root, pictures, replace_thumbnails, thumb_height)
     summary = {}
+    unorganizable = unorganizable or {}
 
     for section in sections:
         entries, consume_only = plan[section]
+        marked = 0
+        wanted = set(unorganizable.get(section, []))
+        for entry in entries:
+            pid = entry["plugin_id"]
+            if (entry["key"] in wanted and entry["matched"] and pid
+                    and dbmod.active_action_for_plugin(conn, pid) is None
+                    and dbmod.set_fl_cloud(conn, pid, True)):
+                marked += 1
         section_dir = root / section
         pics_before = dict(pics.counts)
 
@@ -1115,7 +1131,7 @@ def apply(conn, mode: str, overrides: dict[str, dict[str, str]] | None = None,
 
         summary[section] = {
             "applied": applied, "unmatched": unmatched, "renamed": renamed, "assigned": assigned,
-            "moved": moved, "skipped": skipped, "consumed": len(consume_only),
+            "moved": moved, "skipped": skipped, "consumed": len(consume_only), "unorganizable": marked,
             "backup": str(backup) if backup else None, "new_folder_removed": new_removed,
             "pictures": {k: pics.counts[k] - pics_before[k] for k in pics.counts} if pictures else None,
             "thumbnail_backup": str(pics.backup_dir) if pics.backup_dir else None,

@@ -19,7 +19,9 @@ _IGNORE_NAMES = {"desktop.ini", "folder.ico"}
 # each "Plug-Ins Vxx" version folder (unlike WaveShell, which lives inside VST3/VST2).
 _IGNORE_PREFIXES = ("waveshell", "waveslib")
 
-_SUFFIX_STRIP_RE = re.compile(r"[\s_-]*(x64|x86|64|32|win|vst3?|clap)\s*$", re.IGNORECASE)
+# Trailing bitness/format tags, bare or in brackets ("Plugin (x64)", "Plugin_VST2", "Plugin [AAX]"),
+# so every format's copy of one plugin gets the same normalized name.
+_SUFFIX_STRIP_RE = re.compile(r"[\s_.-]*[(\[]?\s*(x64|x86|64|32|win|vst[23]?|clap|aax)\s*[)\]]?\s*$", re.IGNORECASE)
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 
 
@@ -111,9 +113,7 @@ def _process_bundle(entry: Path, root: ScanRoot) -> dict:
         }
         vendor_source = "binary" if base["vendor"] else None
 
-    if root.format == "AAX":
-        status = "needs_review"
-        reason = (reason + "; " if reason else "") + "Pro Tools/AAX format — Pro Tools not part of this workflow, candidate for removal"
+    # AAX's "candidate for removal" flag depends on Pro Tools being installed: scan_service.apply_aax_rule.
 
     return {
         "name": base["name"],
@@ -198,24 +198,25 @@ def _host_path(root: ScanRoot, entry: Path) -> str:
     return str(Path(root.host_path) / rel).replace("/", "\\")
 
 
+def _is_plugin_entry(entry: Path, root: ScanRoot) -> bool:
+    """Whether _process_entry reads this entry as a plugin (cheap: names only, no metadata)."""
+    if root.format == "WAVES":
+        return entry.is_dir() and entry.suffix.lower() == ".bundle"
+    if root.format == "FL-NATIVE":
+        return entry.is_dir()
+    return entry.suffix.lower() in root.extensions
+
+
 def _process_entry(entry: Path, root: ScanRoot) -> dict | None:
-    if _should_ignore(entry):
+    if _should_ignore(entry) or not _is_plugin_entry(entry, root):
         return None
 
     if root.format == "WAVES":
-        if entry.is_dir() and entry.suffix.lower() == ".bundle":
-            fields = _process_waves_bundle(entry, root)
-        else:
-            return None
+        fields = _process_waves_bundle(entry, root)
     elif root.format == "FL-NATIVE":
-        if entry.is_dir():
-            fields = _process_fl_native(entry, root)
-        else:
-            return None
-    elif entry.suffix.lower() in root.extensions:
-        fields = _process_bundle(entry, root) if entry.is_dir() else _process_flat_file(entry, root)
+        fields = _process_fl_native(entry, root)
     else:
-        return None
+        fields = _process_bundle(entry, root) if entry.is_dir() else _process_flat_file(entry, root)
 
     fields.setdefault("bitness", None)
     fields["plugin_type"] = _derive_type(fields["categories"], root.default_type)
@@ -231,8 +232,8 @@ def _process_entry(entry: Path, root: ScanRoot) -> dict | None:
 _MAX_VENDOR_SUBFOLDER_DEPTH = 3  # e.g. Celemony/Melodyne/Melodyne.vst3 needs 2; one more for margin
 
 
-def _walk_for_plugins(dir_path: Path, root: ScanRoot, depth_remaining: int) -> list[dict]:
-    """Looks for plugin units under dir_path, recursing into non-matching
+def _walk_entries(dir_path: Path, root: ScanRoot, depth_remaining: int) -> list[Path]:
+    """Candidate plugin units under dir_path, recursing into non-matching
     subfolders up to depth_remaining levels — some vendors nest an extra
     <Product>/ folder between the vendor folder and the actual plugin unit
     (confirmed real: Celemony/Melodyne/Melodyne.vst3, GuitarML/NeuralPi/
@@ -240,39 +241,50 @@ def _walk_for_plugins(dir_path: Path, root: ScanRoot, depth_remaining: int) -> l
     a single level of recursion missed all four of these entirely; found via
     a one-off audit for stray non-plugin files that turned up real plugins
     invisible to the catalog instead, see AGENTS.md)."""
-    records = []
+    entries = []
     if depth_remaining <= 0:
-        return records
+        return entries
     for entry in sorted(dir_path.iterdir()):
         if _should_ignore(entry):
             continue
         if entry.is_dir() and entry.suffix.lower() not in root.extensions:
-            records.extend(_walk_for_plugins(entry, root, depth_remaining - 1))
+            entries.extend(_walk_entries(entry, root, depth_remaining - 1))
             continue
-        rec = _process_entry(entry, root)
-        if rec:
-            records.append(rec)
-    return records
+        entries.append(entry)
+    return entries
 
 
-def scan_root(root: ScanRoot) -> list[dict]:
+def candidate_entries(root: ScanRoot) -> list[Path]:
+    """Every entry scan_root hands to _process_entry, in the same order. The folder
+    watcher (app/plugin_watch.py) lists these without reading any metadata."""
     base = Path(root.container_path)
     if not base.is_dir():
         return []
 
-    records = []
+    entries = []
     for entry in sorted(base.iterdir()):
         if _should_ignore(entry):
             continue
 
         if entry.is_dir() and root.recurse_vendor_dirs and entry.suffix.lower() not in root.extensions and root.format not in ("WAVES", "FL-NATIVE"):
             # vendor-named subfolder holding nested plugin units, e.g. VST3/Accusonus/*.vst3
-            # (or, some vendors, one level deeper still — see _walk_for_plugins)
-            records.extend(_walk_for_plugins(entry, root, _MAX_VENDOR_SUBFOLDER_DEPTH))
+            # (or, some vendors, one level deeper still — see _walk_entries)
+            entries.extend(_walk_entries(entry, root, _MAX_VENDOR_SUBFOLDER_DEPTH))
             continue
+        entries.append(entry)
+    return entries
 
+
+def plugin_entries(root: ScanRoot) -> list[tuple[str, Path]]:
+    """(host_path, entry) for each entry this root would catalog, names only."""
+    return [(_host_path(root, e), e) for e in candidate_entries(root)
+            if not _should_ignore(e) and _is_plugin_entry(e, root)]
+
+
+def scan_root(root: ScanRoot) -> list[dict]:
+    records = []
+    for entry in candidate_entries(root):
         rec = _process_entry(entry, root)
         if rec:
             records.append(rec)
-
     return records

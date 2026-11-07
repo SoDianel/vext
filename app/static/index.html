@@ -166,9 +166,6 @@
         <select id="f-vendor-source"><option value="">Any vendor source</option></select>
         <!-- Tag filters: each click cycles any → only these (✓) → without these (✕). -->
         <div class="tag-filter" id="f-tags" role="group" aria-label="Tags">
-          <button type="button" data-tag="fl_cloud" title="FL Cloud plugins (pinned to their install path)">FL Cloud</button>
-          <button type="button" data-tag="fl_synced" title="Known to FL Studio's own plugin database">FL Synced</button>
-          <button type="button" data-tag="fl_native" title="FL Studio's own plugins">FL Native</button>
           <button type="button" data-tag="picture" title="Has a picture">Picture</button>
           <button type="button" data-tag="pending" title="Has a proposed or applied action waiting">Pending action</button>
         </div>
@@ -310,7 +307,8 @@
           <h3>Duplicates <span class="seg-count" data-count="dedup"></span></h3>
           <div class="section-actions"><button id="cleanup-propose-all">Propose quarantine for all listed</button><div class="view-toggle" data-view-for="actions"></div></div>
         </div>
-        <p class="hint">Same plugin available in a lower-priority format (CLAP &gt; VST3 &gt; VST2) or duplicated across install
+        <p class="hint">Listed only when Cleanup suggestions are on (Configuration &gt; General).
+          Same plugin available in a lower-priority format (CLAP &gt; VST3 &gt; VST2) or duplicated across install
           locations (64-bit vs 32-bit, older vs newer Waves version), vendor-verified before grouping.
           Nothing is deleted automatically. Propose an action, then apply it explicitly from Pending
           (moves the file to quarantine; see the Quarantine section to restore or permanently delete it afterwards).</p>
@@ -322,7 +320,7 @@
           <h3>Flagged <span class="seg-count" data-count="flagged"></span></h3>
           <div class="section-actions"><button id="flagged-propose-all">Propose quarantine for all listed</button></div>
         </div>
-        <p class="hint">Corrupted files, incomplete installs, and Pro Tools/AAX plugins (Pro Tools isn't part of this workflow).</p>
+        <p class="hint">Corrupted files, incomplete installs, and AAX plugins while Pro Tools isn't installed (Configuration &gt; DAWs).</p>
         <div class="card-list" id="flagged-list"></div>
       </div>
     </div>
@@ -524,11 +522,21 @@
       </div>
 
       <div class="subsection">
-        <h3>Quarantine older copies</h3>
-        <p class="hint">After each scan, VEXT proposes quarantine for copies that a better one supersedes.
-          Ranking: CLAP over VST3 over VST2 over VST, and 64-bit over 32-bit. Proposals are only proposals. Each one
-          is confirmed in Actions &gt; Pending before any file moves.</p>
-        <label class="check"><input type="checkbox" id="auto-propose-superseded" class="switch"> <span>Propose quarantine for older and lower-ranked copies</span></label>
+        <h3>Watch plugin folders</h3>
+        <p class="hint">When an installer adds, updates or removes a plugin in one of the scanned folders, VEXT scans again
+          by itself a few seconds after the install finishes, and the new plugins show up in Scan &gt; Plug-ins. Like
+          the Scan button, this only reads the folders.</p>
+        <label class="check"><input type="checkbox" id="watch-plugin-folders" class="switch"> <span>Scan automatically after an install</span></label>
+      </div>
+
+      <div class="subsection">
+        <h3>Cleanup suggestions</h3>
+        <p class="hint">Off by default: a copy in an older format is often kept on purpose, for a DAW that only loads that
+          format. When on, Actions &gt; Cleanup lists the copies a better one supersedes (CLAP over VST3 over VST2 over VST,
+          64-bit over 32-bit, a newer Waves version over an older one), and each scan proposes quarantine for them.
+          AAX is never replaced by another format: it is suggested for removal only while Pro Tools isn't installed
+          (Configuration &gt; DAWs). Proposals are only proposals. Each one is confirmed in Actions &gt; Pending before any file moves.</p>
+        <label class="check"><input type="checkbox" id="suggest-obsolete-formats" class="switch"> <span>Suggest cleaning up obsolete formats and copies</span></label>
       </div>
     </div>
 
@@ -593,7 +601,7 @@
             <h3>Install folder</h3>
             <p class="hint">FL Studio is found automatically from the Windows registry; set a folder only if it lives somewhere
               unusual, or to point at another version. Auto-detect clears your folder and detects again. FL Studio Sync in the
-              sidebar and the FL Cloud options only show while FL Studio is installed.</p>
+              sidebar and the Unorganizable mark only show while FL Studio is installed.</p>
             <div class="card-list" id="config-daws"></div>
           </div>
 
@@ -617,6 +625,25 @@
               and dragging a card into FL needs only a matching FL preset. Installing copies it into FL's user-data folder
               after you confirm.</p>
             <div id="fl-controller-root"></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="daw-panel" data-daw="protools">
+        <summary class="daw-summary">
+          <span class="daw-logo"><span class="daw-tile" aria-hidden="true">P</span></span>
+          <span class="daw-name">Pro Tools</span>
+          <span class="badge muted" id="daw-badge-protools">Checking…</span>
+          <span class="daw-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="daw-body">
+          <div class="subsection first">
+            <h3>Install folder</h3>
+            <p class="hint">AAX plugins only load in Pro Tools. While Pro Tools isn't installed, VEXT flags every AAX plugin as a
+              candidate for removal (Actions &gt; Cleanup &gt; Flagged); with Pro Tools, they are kept like any other plugin.
+              Pro Tools is found in Program Files or the list of installed programs; set the folder (the one with
+              <code>ProTools.exe</code>) only if it lives somewhere else.</p>
+            <div class="card-list" id="config-pro-tools"></div>
           </div>
         </div>
       </details>

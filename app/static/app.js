@@ -480,7 +480,7 @@ const bitBadge = (r) => r.bitness
   ? ` <span class="tag bits" title="${r.bitness}-bit binary (read from the PE header).">x${r.bitness === 64 ? '64' : '86'}</span>`
   : '';
 const flCloudBadge = (r) => r.fl_cloud
-  ? ` <span class="tag fl-cloud" title="FL Cloud plugin — pinned to its install path; never moved, deduped or quarantined.">☁ FL Cloud</span>`
+  ? ` <span class="tag fl-cloud" title="Unorganizable — pinned to its install path; never moved, deduped or quarantined.">☁ Unorganizable</span>`
   : '';
 const flBadge = (r) => r.fl_detected
   ? ` <span class="tag fl-detected" title="Also found in FL Studio's own plugin database${r.fl_name ? ' as “' + r.fl_name + '”' : ''}.">FL</span>`
@@ -687,7 +687,7 @@ const CONFIG_PANES = ['general', 'locations', 'daws', 'audio', 'midi', 'performa
 // Panes drawn by js/audio-settings.js ('config-audio'): one part each, in its own root.
 const AUDIO_MODULE_PANES = { audio: 'config-audio-root', midi: 'config-midi-root', performance: 'config-performance-root' };
 const CONFIG_LOADERS = {
-  general: () => Promise.all([loadAutoPropose(), loadConfigSettings()]),
+  general: () => Promise.all([loadGeneralSwitches(), loadConfigSettings()]),
   locations: () => Promise.all([loadConfigScanRoots(), loadConfigRemovedRoots()]),
   daws: () => loadDaws(),
   ai: () => Promise.all([loadAi(), initBatchPanel()]),
@@ -1172,7 +1172,8 @@ async function loadBrowse() {
   const q = document.getElementById('f-search').value;
   const status = document.getElementById('f-status').value;
   const vendor_source = document.getElementById('f-vendor-source').value;
-  const params = new URLSearchParams({ q, status, vendor_source });
+  // unify: one row per plugin, every format's copy as a badge (app/web.py _unified).
+  const params = new URLSearchParams({ q, status, vendor_source, unify: '1' });
   for (const [t, st] of Object.entries(browseTags)) params.append('tag', st === 'exclude' ? '-' + t : t);
   msFilters.vendor.getSelected().forEach(v => params.append('vendor', v));
   msFilters.format.getSelected().forEach(v => params.append('format', v));
@@ -1221,6 +1222,7 @@ function debounce(fn, ms) {
 // ---------- sorting ----------
 function sortValue(r, key) {
   if (key === 'categories') return (r.categories || []).map(c => c.name).join(', ');
+  if (key === 'id' && r.newest_id) return r.newest_id; // a plugin with a newly found copy counts as new
   return r[key];
 }
 
@@ -1271,7 +1273,9 @@ document.getElementById('browse-sort-dir').addEventListener('click', () => setBr
 function renderBrowse(rows) {
   const tbody = document.getElementById('browse-tbody');
   fxFlip(tbody, () => fillBrowse(tbody, rows));
-  document.getElementById('browse-count').textContent = `${rows.length.toLocaleString('en-US')} ${rows.length === 1 ? 'plugin' : 'plugins'}`;
+  const files = rows.reduce((n, r) => n + ((r.copies && r.copies.length) || 1), 0);
+  document.getElementById('browse-count').textContent = `${rows.length.toLocaleString('en-US')} ${rows.length === 1 ? 'plugin' : 'plugins'}`
+    + (files > rows.length ? ` (${files.toLocaleString('en-US')} files)` : '');
 }
 
 // A row's categories; tile view shows the first three and "+N" (the rest in its tooltip).
@@ -1281,6 +1285,19 @@ function browseCats(r) {
   const more = cats.length > 3
     ? `<span class="tag more" title="${escHtml(cats.slice(3).map(c => c.name).join(', '))}">+${cats.length - 3}</span>` : '';
   return cats.map(c => `<span class="tag ${c.source === 'heuristic' ? 'heuristic' : ''}">${escHtml(c.name)}</span>`).join('') + more;
+}
+
+// One plugin, every copy (r.copies): a badge per format, x86 on a 32-bit copy. VST is the
+// classic VstPlugins folder, VST2 Common Files\VST2 (both the VST2 format). A badge opens
+// that copy's details; the rest of the row opens the best copy (the one the row shows).
+function browseFormatCell(r) {
+  const copies = r.copies || [];
+  if (copies.length <= 1) return `<span class="badge">${escHtml(copies.length ? copies[0].label : r.format)}</span>${bitBadge(r)}`;
+  return `<span class="fmt-copies">${copies.map(c => {
+    const label = `${c.label}${c.bitness === 32 ? ' x86' : ''}`;
+    const tip = `${c.host_path}${c.status !== 'ok' ? ` (${c.status})` : ''}${c.action_status ? ` (${c.action_status.action} ${c.action_status.applied ? 'applied' : 'proposed'})` : ''}`;
+    return `<button type="button" class="badge fmt-copy${c.id === r.id ? ' is-main' : ''}${c.status !== 'ok' ? ' is-flagged' : ''}" data-copy-id="${c.id}" title="${escHtml(tip)}" aria-label="${escHtml(label)}: ${escHtml(c.host_path)}">${escHtml(label)}</button>`;
+  }).join('')}</span>`;
 }
 
 // One cell per column in all three views, so switching is CSS alone (style.css, "Browse:
@@ -1299,7 +1316,7 @@ function fillBrowse(tbody, rows) {
       <td class="b-pic">${listPictureHtml(r)}</td>
       <td class="b-name">${storeIcon(r)}<span class="b-title">${escHtml(r.name)}</span>${flBadge(r)}${flCloudBadge(r)}</td>
       <td class="b-vendor">${vendorCell(r)}</td>
-      <td class="b-format"><span class="badge">${escHtml(r.format)}</span>${bitBadge(r)}</td>
+      <td class="b-format">${browseFormatCell(r)}</td>
       <td class="b-type">${escHtml(r.plugin_type) || '<span class="none">-</span>'}</td>
       <td class="b-cats">${browseCats(r)}</td>
       <td class="b-status">${r.status === 'ok' ? '<span class="badge ok st-ok">ok</span>' : statusBadge(r.status)}${actionStatusBadge(r.action_status)}</td>
@@ -1311,7 +1328,8 @@ function fillBrowse(tbody, rows) {
   tbody.querySelectorAll('tr').forEach(tr => {
     tr.addEventListener('click', (e) => {
       if (e.target.closest('.row-menu-btn')) return;
-      showPluginModal(parseInt(tr.dataset.id));
+      const copy = e.target.closest('.fmt-copy');
+      showPluginModal(parseInt(copy ? copy.dataset.copyId : tr.dataset.id));
     });
     tr.addEventListener('mouseenter', (e) => showTooltip(e, parseInt(tr.dataset.id)));
     tr.addEventListener('mousemove', positionTooltip);
@@ -1376,10 +1394,10 @@ async function showPluginModal(id, opts = {}) {
   const [p, s] = await Promise.all([api('/api/plugins/' + id), settings().catch(() => ({}))]);
   if (!window._refCache) await loadReference();
   const { vendors, types } = window._refCache;
-  // FL Cloud only exists for FL Studio, so it's only offered when FL Studio is installed.
+  // Unorganizable (FL Cloud plugins and the like) is only offered when FL Studio is installed.
   const flStudio = !!s.fl_studio_installed;
   const busy = p.action_status ? 'Resolve the pending/unresolved action first' : '';
-  const pinned = p.fl_cloud ? 'FL Cloud plugin — must stay at its install path' : '';
+  const pinned = p.fl_cloud ? 'Unorganizable plugin — must stay at its install path' : '';
   const q = (v) => escHtml(v || '');
   pmDirty = false;
   pmCatSel = new Set((p.categories || []).map(c => c.slug));
@@ -1513,7 +1531,7 @@ async function showPluginModal(id, opts = {}) {
             ${actionRow(`<button type="button" class="danger" id="modal-propose-quarantine" ${busy || pinned ? 'disabled' : ''} title="${q(pinned || busy)}">Propose</button>`,
               'Quarantine', 'Moves the file to quarantine, where it can be restored or deleted for good later.')}
             ${flStudio ? actionRow(`<button type="button" id="modal-fl-cloud" ${!p.fl_cloud && busy ? 'disabled' : ''}>${p.fl_cloud ? 'Unmark' : 'Mark'}</button>`,
-              p.fl_cloud ? 'FL Cloud plugin' : 'Mark as FL Cloud', p.fl_cloud ? 'Pinned to its install path: never moved, deduplicated or quarantined.' : 'FL Cloud plugins must stay where they were installed. Marking keeps VEXT from ever moving it.') : ''}
+              p.fl_cloud ? 'Unorganizable' : 'Mark as Unorganizable', p.fl_cloud ? 'Pinned to its install path: never moved, deduplicated or quarantined.' : 'For plugins that must stay where they were installed (FL Cloud plugins, for one). Marking keeps VEXT from ever moving it.') : ''}
             ${actionRow(`<button type="button" class="danger" id="modal-ignore" ${busy ? 'disabled' : ''} title="${q(busy)}">Ignore…</button>`,
               'Ignore', 'Removes it from the catalog and skips it on future scans. The file itself is never touched.')}
           </section>
@@ -1655,7 +1673,7 @@ async function showPluginModal(id, opts = {}) {
   if (flCloudBtn) flCloudBtn.onclick = async () => {
     try {
       await api(`/api/plugins/${p.id}/fl-cloud`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !p.fl_cloud }) });
-      toast(p.fl_cloud ? 'Unmarked FL Cloud.' : 'Marked FL Cloud — it will stay where it is installed.');
+      toast(p.fl_cloud ? 'Unmarked Unorganizable.' : 'Marked Unorganizable — it will stay where it is installed.');
       closeModal();
       refresh();
     } catch (e) { handleActionError(e); }
@@ -2341,7 +2359,14 @@ async function bulkPropose(targets, action) {
 async function loadCleanup() {
   const rows = await api('/api/dedup');
   const list = document.getElementById('cleanup-list');
-  if (!rows.length) { fxFlip(list, () => { list.innerHTML = `<div class="empty-state">No dedup candidates — nothing superseded right now.</div>`; }); return; }
+  if (!rows.length) {
+    const off = (await settings()).suggest_obsolete_formats !== '1';
+    const text = off
+      ? 'Cleanup suggestions are off. Turn them on in Configuration > General to list copies a better format or bitness supersedes.'
+      : 'No dedup candidates — nothing superseded right now.';
+    fxFlip(list, () => { list.innerHTML = `<div class="empty-state">${text}</div>`; });
+    return;
+  }
   fxFlip(list, () => { list.innerHTML = rows.map(c => `
     <div class="candidate-card" data-plugin-id="${c.superseded.id}">
       <div class="info">
@@ -2402,7 +2427,7 @@ async function loadFlagged() {
       </div>
       <div class="actions-inline">
         <button class="danger" data-id="${r.id}" data-reason="${(r.status_reason || r.status).replace(/"/g, '&quot;')}" ${r.action_status || r.fl_cloud ? 'disabled' : ''}>
-          ${r.fl_cloud ? 'FL Cloud — pinned' : r.action_status ? 'Already proposed' : 'Propose quarantine'}
+          ${r.fl_cloud ? 'Unorganizable — pinned' : r.action_status ? 'Already proposed' : 'Propose quarantine'}
         </button>
         ${rowMenuBtn(r.id)}
       </div>
@@ -2414,9 +2439,8 @@ async function loadFlagged() {
   );
 }
 
-// FL Cloud has no section of its own any more: a plugin is marked or unmarked from its
-// details or its ⋯ menu (only while FL Studio is installed), and Scan > Browse lists the
-// marked ones with the "FL Cloud: marked only" filter.
+// Unorganizable has no section of its own: a plugin is marked or unmarked from its details,
+// its ⋯ menu (only while FL Studio is installed) or FL Studio Sync's "Left at the root" list.
 
 // ---------- ambiguous (Actions > Metadata) ----------
 async function openPluginEditor(id) {
@@ -2855,7 +2879,51 @@ function loadDaws() {
   wireDawPanels();
   // The controller setup (and the FL badge on its panel) is mounted by js/fl-launch.js.
   if (window.VEXT.flLaunch) window.VEXT.flLaunch.mount();
-  return Promise.all([loadFlStudioSetting(), loadFlNativeFolders(), loadConfigSettings('config-daw-settings-list', DAW_SETTINGS)]);
+  return Promise.all([loadFlStudioSetting(), loadFlNativeFolders(), loadProToolsSetting(),
+    loadConfigSettings('config-daw-settings-list', DAW_SETTINGS)]);
+}
+
+// Pro Tools: only whether it's installed matters (AAX plugins are suggested for removal without it).
+async function loadProToolsSetting() {
+  const el = document.getElementById('config-pro-tools');
+  if (!el) return;
+  const s = await settings(true);
+  const badge = document.getElementById('daw-badge-protools');
+  if (badge) {
+    badge.textContent = s.pro_tools_installed ? 'Installed' : 'Not found';
+    badge.className = `badge ${s.pro_tools_installed ? 'ok' : 'muted'}`;
+  }
+  const via = { registry: 'the list of installed programs', folder: 'Program Files' }[s.pro_tools_detected_from];
+  const placeholder = s.pro_tools_detected ? `Detected: ${s.pro_tools_detected}` : 'Not found. Enter the install folder if Pro Tools is installed.';
+  const status = s.pro_tools_root
+    ? 'Using the folder you set.'
+    : via ? `Auto-detected from ${via}.` : "Pro Tools isn't installed: AAX plugins are suggested for removal.";
+
+  el.innerHTML = `
+    <div class="candidate-card daw-row">
+      <div class="info">
+        <div class="fixed-path-edit">
+          <input type="text" class="daw-path" id="pro-tools-root" value="${escHtml(s.pro_tools_root)}" placeholder="${escHtml(placeholder)}" aria-label="Pro Tools install folder">
+          <button class="primary" data-daw-do="save">Save</button>
+          <button data-daw-do="auto">Auto-detect</button>
+        </div>
+        <div class="path">${escHtml(status)}</div>
+      </div>
+    </div>`;
+  el.querySelector('[data-daw-do="save"]').onclick =
+    () => saveProToolsRoot(document.getElementById('pro-tools-root').value.trim());
+  el.querySelector('[data-daw-do="auto"]').onclick = () => saveProToolsRoot('');
+}
+
+async function saveProToolsRoot(value) {
+  try {
+    await api('/api/settings/pro_tools_root', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value }),
+    });
+    toast(value ? 'Pro Tools folder saved.' : 'Back to auto-detect.');
+    await loadProToolsSetting();
+    loadStats(); // AAX plugins were flagged or cleared at once
+  } catch (e) { handleActionError(e); }
 }
 
 async function loadFlStudioSetting() {
@@ -4056,6 +4124,28 @@ function loadLogsSection() {
 }
 setInterval(pollLogsStatus, 3000);
 
+// ---------- plugin folder watcher (app/plugin_watch.py) ----------
+// After an install the backend scans by itself. This notices (seq grows) and refreshes the
+// way a Scan button scan does: the counts, the visible section, the "new" badge on Plug-ins.
+let pluginWatchSeq = null;
+async function pollPluginWatch() {
+  let w;
+  try { w = await api('/api/plugin-watch'); } catch { return; /* retry next tick */ }
+  if (pluginWatchSeq === null || w.seq === pluginWatchSeq) { pluginWatchSeq = w.seq; return; }
+  pluginWatchSeq = w.seq;
+  const last = w.last || {};
+  const parts = [last.new ? `${last.new} new` : '', last.removed ? `${last.removed} removed` : ''].filter(Boolean);
+  toast(parts.length ? `Plugin folders changed: ${parts.join(', ')}.` : 'Plugin folders changed: the catalog is up to date.');
+  if (last.new) {
+    const badge = document.getElementById('scan-tab-new');
+    badge.textContent = `${last.new.toLocaleString('en-US')} new`;
+    badge.hidden = false;
+  }
+  if (!scanRunning) refresh();
+}
+setInterval(pollPluginWatch, 5000);
+pollPluginWatch();
+
 // ---------- Microsoft's C++ runtime (app/runtime_check.py) ----------
 // Plugins share Windows' copy of msvcp140.dll with VEXT (VEXT carries none on
 // purpose). Missing, too old (< 14.40) or damaged, plugins crash on open, so the
@@ -4362,19 +4452,28 @@ document.querySelectorAll('#reference-tabs button[data-ref-pane]').forEach(btn =
   });
 });
 
-// ---------- quarantine older copies (proposal switch) ----------
-async function loadAutoPropose() {
-  const s = await api('/api/settings');
-  document.getElementById('auto-propose-superseded').checked = s.auto_propose_superseded !== '0';
+// ---------- Configuration > General switches: the folder watcher and cleanup suggestions ----------
+async function loadGeneralSwitches() {
+  const s = await settings(true);
+  document.getElementById('watch-plugin-folders').checked = s.watch_plugin_folders !== '0';
+  document.getElementById('suggest-obsolete-formats').checked = s.suggest_obsolete_formats === '1';
 }
-document.getElementById('auto-propose-superseded').addEventListener('change', async (e) => {
-  try {
-    await api('/api/settings/auto_propose_superseded', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: e.target.checked ? '1' : '0' }),
-    });
-    toast(e.target.checked ? 'Older copies will be proposed after each scan.' : 'Older-copy proposals are off.');
-  } catch (err) { e.target.checked = !e.target.checked; handleActionError(err); }
-});
+function wireSettingSwitch(id, key, onMsg, offMsg) {
+  document.getElementById(id).addEventListener('change', async (e) => {
+    try {
+      await api(`/api/settings/${key}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: e.target.checked ? '1' : '0' }),
+      });
+      settings(true);
+      toast(e.target.checked ? onMsg : offMsg);
+      loadStats(); // the Duplicates count follows the cleanup switch
+    } catch (err) { e.target.checked = !e.target.checked; handleActionError(err); }
+  });
+}
+wireSettingSwitch('watch-plugin-folders', 'watch_plugin_folders',
+  'VEXT will scan by itself after a plugin install.', 'Automatic scans are off. Use the Scan button after an install.');
+wireSettingSwitch('suggest-obsolete-formats', 'suggest_obsolete_formats',
+  'Obsolete formats and copies will be suggested in Actions > Cleanup.', 'Obsolete-format suggestions are off.');
 
 // ---------- review lists (Actions > Metadata): Missing vendor / Inferred vendor / Missing type / categories / links ----------
 // Each list (a chip; `tab` below is its key) lists the plugins that lack one piece of metadata. The AI can investigate one plugin, or the

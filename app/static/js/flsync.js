@@ -28,6 +28,7 @@
   let checkMounted = false;
   let options = null;        // {vendor: [...], category: [...]}, fetched on each visit
   let overrides = {};        // {Effects: {key: value}, Generators: {...}}: the destinations picked for root-bound plugins
+  let unorganizable = {};    // {Effects: [key, ...], Generators: [...]}: matched root-bound plugins to mark Unorganizable on Apply
   let previewed = false;     // Apply needs a Preview of the current choices
   let resultKind = null;     // 'preview' | 'applied' | null: what the result area shows
   let lastCounts = null;     // the last inventory's counts and root (from vext:flsync-inventory)
@@ -322,7 +323,7 @@
   // Changes that alter which plugins are listed also drop the destinations picked so far.
   function changed(resetOverrides) {
     previewed = false;
-    if (resetOverrides) overrides = {};
+    if (resetOverrides) { overrides = {}; unorganizable = {}; }
     paintOrganize();
   }
 
@@ -378,6 +379,7 @@
   async function preview() {
     const btn = $('fls-preview');
     overrides = {};
+    unorganizable = {};
     btn.disabled = true;
     try {
       if (!options) options = await V.api('/api/fl-sync/options');
@@ -413,7 +415,7 @@
         <h4 class="fls-result-title">Left at the root: pick a destination to file one instead (optional)</h4>
         <div class="fls-table-wrap">
           <table class="fls-root-table">
-            <thead><tr><th>Plugin</th><th>Why it is at the root</th><th>Destination</th></tr></thead>
+            <thead><tr><th>Plugin</th><th>Why it is at the root</th><th>Destination</th><th title="Keeps the plugin where it is installed (FL Cloud plugins, for one). Done when you Apply.">Unorganizable</th></tr></thead>
             <tbody>
               ${rootRows.map(e => `
                 <tr>
@@ -424,6 +426,11 @@
                       <option value="">Leave at root</option>
                       ${dests.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}
                     </select>
+                  </td>
+                  <td>
+                    ${e.matched
+                      ? `<input type="checkbox" class="fls-unorg" data-section="${esc(e.section)}" data-key="${esc(e.key)}" aria-label="Mark ${esc(e.ps_name)} as Unorganizable">`
+                      : '<span class="fls-sub" title="VEXT has no plugin for this entry to mark.">n/a</span>'}
                   </td>
                 </tr>`).join('')}
             </tbody>
@@ -438,6 +445,14 @@
         overrides[section] = overrides[section] || {};
         if (sel.value) overrides[section][key] = sel.value;
         else delete overrides[section][key];
+      };
+    });
+    el.querySelectorAll('.fls-unorg').forEach(cb => {
+      cb.onchange = () => {
+        const list = unorganizable[cb.dataset.section] = unorganizable[cb.dataset.section] || [];
+        const i = list.indexOf(cb.dataset.key);
+        if (cb.checked && i < 0) list.push(cb.dataset.key);
+        if (!cb.checked && i >= 0) list.splice(i, 1);
       };
     });
   }
@@ -455,6 +470,7 @@
             ${stat(s.skipped, 'Skipped', 'nowhere to file them')}
             ${stat(s.renamed, 'Renamed', 'synced from FL')}
             ${stat(s.assigned, 'Assignments', 'vendor or category saved')}
+            ${s.unorganizable ? stat(s.unorganizable, 'Unorganizable', 'marked, kept in place') : ''}
           </div>
           ${pic ? `<p class="fls-note">Thumbnails: ${pic.added} added, ${pic.updated} updated, ${pic.current} already current, ${pic.kept} kept (not made by VEXT), ${pic.missing} without a VEXT picture.</p>` : ''}
           ${s.thumbnail_backup ? `<p class="fls-note">Replaced thumbnails backed up to: <code>${esc(s.thumbnail_backup)}</code></p>` : ''}
@@ -492,7 +508,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode, overrides, sections, dangerous_wipe: dangerous, save_backup: saveBackup,
-          scope, pictures, replace_thumbnails: replaceThumbs, thumb_size: px,
+          scope, pictures, replace_thumbnails: replaceThumbs, thumb_size: px, unorganizable,
         }),
       });
       renderApplied(data);
@@ -500,6 +516,7 @@
       previewed = false;
       resultKind = 'applied';
       overrides = {};
+      unorganizable = {};
       V.toast('FL Studio browse tree synced.');
       const check = checkModule();
       if (check && check.refresh) check.refresh();
@@ -530,6 +547,7 @@
     previewed = false;
     resultKind = null;
     overrides = {};
+    unorganizable = {};
     $('fls-result').innerHTML = '';
     paintOrganize();
     showTab(currentTab());

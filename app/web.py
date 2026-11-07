@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app import actions, ai_agents, ai_batch, analysis_tap, applog, browser_audio, browser_record, codex_research, db, dedup, fl_reorganize, logbuf, pictures, plugin_host, registry_scan, review, security, vendor_org
+from app import actions, ai_agents, ai_batch, analysis_tap, applog, browser_audio, browser_record, codex_research, db, dedup, fl_reorganize, logbuf, pictures, plugin_host, plugin_watch, registry_scan, review, security, vendor_org
 from app.config import DB_PATH, FL_PLUGIN_DB_ROOT, PROJECT_ROOT, QUARANTINE_DIR
 from app.config import FIXED_LOCATION_KEYS
 from app import metadata_archive, scan_service, storage  # storage: Configuration > Storage; metadata_archive: Database > Metadata
@@ -113,6 +113,16 @@ def _ensure_schema_current():
     ai_agents.warm()   # agent CLI checks take seconds: have them cached before the first popup
     _forget_youtube()
     _forget_input_source()
+    _forget_auto_propose()
+
+
+def _forget_auto_propose() -> None:
+    """The old "propose quarantine for older copies" switch (on by default) became the
+    opt-in suggest_obsolete_formats (2026-11-07): drop it. AAX rows from before the Pro
+    Tools rule get it now rather than at the next scan."""
+    with db.connect(DB_PATH) as conn:
+        conn.execute("DELETE FROM settings WHERE key = 'auto_propose_superseded'")
+        scan_service.apply_aax_rule(conn, scan_service.pro_tools_present(conn))
 
 
 def _forget_input_source() -> None:
@@ -159,8 +169,11 @@ def index():
     return HTMLResponse(security.inject_bootstrap(html))
 
 
-def _superseded(rows) -> list:
-    """Cleanup review's dedup candidates. FL Cloud plugins must stay where they're installed."""
+def _superseded(conn, rows) -> list:
+    """Cleanup review's dedup candidates, only while the owner asks for them (Configuration >
+    General, "Cleanup suggestions"). Unorganizable plugins must stay where they're installed."""
+    if not scan_service.suggest_obsolete(conn):
+        return []
     return [c for c in dedup.superseded_candidates(rows) if not c["superseded"]["fl_cloud"]]
 
 
@@ -175,7 +188,7 @@ def stats():
     with db.connect(DB_PATH) as conn:
         rows = db.all_plugins(conn)
         cat_map = db.category_tags_by_plugin(conn)
-        dedup_candidates = _superseded(rows)
+        dedup_candidates = _superseded(conn, rows)
         pending_actions = db.list_actions(conn, applied=False)
         quarantined = db.list_quarantined(conn)
         out_of_scope_count = len(db.list_out_of_scope(conn, include_ignored=False))
@@ -219,6 +232,7 @@ def dashboard():
         last_scan = conn.execute(
             "SELECT finished_at FROM scans WHERE finished_at IS NOT NULL ORDER BY id DESC LIMIT 1").fetchone()
         fl_installed = _fl_studio_info(conn)["fl_studio_installed"]
+        dedup_count = len(_superseded(conn, rows))
     cat_ids = set(cat_map)
 
     def tally(key_of, with_size=False):
@@ -264,7 +278,7 @@ def dashboard():
             "missing_type": members("type"),
             "without_categories": members("categories"),
             "missing_links": members("links"),
-            "dedup_candidates": len(_superseded(rows)),
+            "dedup_candidates": dedup_count,
             "unorganized": sum(1 for r in rows if _is_unorganized(r, scan_roots)),
         },
         "queue": {
@@ -302,7 +316,8 @@ def _action_status(action_row: dict | None) -> dict | None:
 @app.get("/api/plugins")
 def list_plugins(q: str = "", vendor: list[str] = Query([]), format: list[str] = Query([]),
                   category: list[str] = Query([]), status: str = "", vendor_source: str = "",
-                  plugin_type: list[str] = Query([]), fl: str = "", tag: list[str] = Query([])):
+                  plugin_type: list[str] = Query([]), fl: str = "", tag: list[str] = Query([]),
+                  unify: bool = False):
     # vendor/format/category/plugin_type are multi-select (repeated query params,
     # e.g. ?vendor=A&vendor=B) — any match within the selected set passes, same
     # "OR within a filter" semantics as a normal multi-select dropdown. status/
@@ -354,15 +369,41 @@ def list_plugins(q: str = "", vendor: list[str] = Query([]), format: list[str] =
         d["image_stamp"] = pictures.picture_stamp(r["host_path"], pics)
         d["has_image"] = d["image_stamp"] is not None
         out.append(d)
-    return out
+    return _unified(out, rows, action_map) if unify else out
+
+
+def _unified(out: list[dict], rows, action_map) -> list[dict]:
+    """Browse's one row per plugin (?unify=1): the copies that passed the filters collapse
+    into their best one (dedup.priority), which lists every copy of the plugin, filtered or
+    not, as `copies` for the format badges. Grouping is dedup.unify_groups."""
+    groups = dedup.unify_groups(rows)
+    by_group: dict[int, list] = {}
+    for r in rows:
+        by_group.setdefault(groups[r["id"]], []).append(r)
+    best: dict[int, dict] = {}
+    for d in out:
+        g = groups[d["id"]]
+        if g not in best or dedup.priority(d) > dedup.priority(best[g]):
+            best[g] = d
+    result = []
+    for d in out:
+        g = groups[d["id"]]
+        if best[g] is not d:
+            continue
+        members = by_group[g]
+        d["copies"] = sorted(({
+            "id": m["id"], "format": m["format"], "label": dedup.format_label(m), "bitness": m["bitness"],
+            "host_path": m["host_path"], "status": m["status"],
+            "action_status": _action_status(action_map.get(m["id"])),
+        } for m in members), key=lambda c: (dedup.label_order(c["label"]), c["bitness"] == 32, c["host_path"].lower()))
+        d["newest_id"] = max(m["id"] for m in members)
+        d["group_size_bytes"] = sum(m["size_bytes"] or 0 for m in members)
+        result.append(d)
+    return result
 
 
 # Browse's tag filters (GET /api/plugins?tag=…): name → predicate(row, action_map, picture index).
-# DAW tags are prefixed by the DAW, so other DAWs can add theirs later.
 _PLUGIN_TAGS = {
-    "fl_cloud": lambda r, a, p: bool(r["fl_cloud"]),
-    "fl_synced": lambda r, a, p: bool(r["fl_detected"]),  # in FL Studio's own plugin database
-    "fl_native": lambda r, a, p: r["format"] == "FL-NATIVE",
     "picture": lambda r, a, p: pictures.picture_stamp(r["host_path"], p) is not None,
     "pending": lambda r, a, p: r["id"] in a,
 }
@@ -517,6 +558,23 @@ plugin_host.configure(audio=_playback_settings, midi=_midi_settings, memory=_mem
 @app.on_event("startup")
 def _start_midi_monitor():
     midi_watch.start()
+
+
+@app.on_event("startup")
+def _start_plugin_watch():
+    plugin_watch.start()
+
+
+@app.on_event("shutdown")
+def _stop_plugin_watch():
+    plugin_watch.stop()
+
+
+@app.get("/api/plugin-watch")
+def plugin_watch_status():
+    """The folder watcher (app/plugin_watch.py): {enabled, seq, last, scanning}. The
+    frontend polls it and refreshes its lists when seq grows."""
+    return plugin_watch.status()
 
 
 @app.on_event("shutdown")
@@ -1399,7 +1457,7 @@ class FlCloudBody(BaseModel):
 
 @app.post("/api/plugins/{plugin_id}/fl-cloud")
 def set_fl_cloud(plugin_id: int, body: FlCloudBody):
-    """Marks/unmarks a plugin as an FL Cloud plugin: it stays cataloged but is
+    """Marks/unmarks a plugin Unorganizable (e.g. an FL Cloud plugin): it stays cataloged but is
     pinned to its install path — excluded from dedup, vendor-folder organize,
     and quarantine so FL Cloud authorization keeps working. Blocked while an
     action is pending/unresolved on it."""
@@ -1863,8 +1921,9 @@ def dedup_candidates():
     with db.connect(DB_PATH) as conn:
         rows = db.all_plugins(conn)
         action_map = db.active_actions_by_plugin(conn)
+        candidates = _superseded(conn, rows)
     out = []
-    for c in _superseded(rows):
+    for c in candidates:
         superseded = _row_to_dict(c["superseded"])
         superseded["action_status"] = _action_status(action_map.get(superseded["id"]))
         out.append({
@@ -2478,9 +2537,15 @@ _SETTINGS_DEFAULTS = {
     "fl_launch_port": "Vext",
     # 1 = the FL quick launcher bubble is shown (desktop app; only while FL Studio is set up).
     "fl_bubble_enabled": "0",
-    # 1 = after each scan, propose quarantine for copies a better format/bitness supersedes.
-    # Proposals only: nothing moves until confirmed in the Actions tab.
-    "auto_propose_superseded": "1",
+    # 1 = suggest cleaning up copies a better format/bitness supersedes (Actions > Cleanup >
+    # Duplicates), and propose quarantine for them after each scan. Proposals only: nothing moves
+    # until confirmed in the Actions tab. Off by default: an older format is often kept for a DAW.
+    "suggest_obsolete_formats": "0",
+    # 1 = rescan by itself when an install, update or uninstall changes a plugin folder (app/plugin_watch.py).
+    "watch_plugin_folders": "1",
+    # Empty = auto-detect. Set = the user's own Pro Tools folder. Without Pro Tools, AAX plugins
+    # are suggested for removal (scan_service.apply_aax_rule).
+    "pro_tools_root": "",
     # How many AI research calls run at once during a batch (1-8).
     "ai_concurrency": "5",
     # Animations, the 3D Scan button and chart motion (js/fx.js). auto = on unless the OS
@@ -2532,10 +2597,12 @@ _SETTING_CHOICES = {
     "audio_auto_normalize": ("0", "1"),
     "audio_auto_balance": ("0", "1"),
     "fl_bubble_enabled": ("0", "1"),
+    "suggest_obsolete_formats": ("0", "1"),
+    "watch_plugin_folders": ("0", "1"),
     "plugin_memory_limit_gb": tuple(str(g) for g in plugin_host.MEMORY_LIMITS_GB),
 }
 # Settings where empty is a real choice (auto-detect / system default / off).
-_SETTINGS_EMPTY_OK = {"fl_studio_root", "audio_output_device", "midi_inputs"}
+_SETTINGS_EMPTY_OK = {"fl_studio_root", "pro_tools_root", "audio_output_device", "midi_inputs"}
 # Changing these restarts what the open plugin plays / its MIDI inputs at once.
 _AUDIO_KEYS = {"audio_driver", "audio_output_device", "audio_sample_rate", "audio_block_size", "audio_safe_mode",
                "audio_plugin_buffer"}
@@ -2555,11 +2622,24 @@ def _fl_studio_info(conn) -> dict:
     }
 
 
+def _pro_tools_info(conn) -> dict:
+    from app.config import detect_pro_tools_root, pro_tools_installed
+
+    detected, how = detect_pro_tools_root()
+    effective = db.get_setting(conn, "pro_tools_root", "") or detected
+    return {
+        "pro_tools_detected": detected,
+        "pro_tools_detected_from": how,
+        "pro_tools_installed": pro_tools_installed(effective),
+    }
+
+
 @app.get("/api/settings")
 def settings_list():
     with db.connect(DB_PATH) as conn:
         values = {key: db.get_setting(conn, key, default) for key, default in _SETTINGS_DEFAULTS.items()}
         values.update(_fl_studio_info(conn))
+        values.update(_pro_tools_info(conn))
     return values
 
 
@@ -2592,6 +2672,8 @@ def settings_update(key: str, body: SettingUpdate):
         if not isinstance(ids, list) or not all(isinstance(i, str) and 0 < len(i) <= 200 for i in ids) or len(ids) > 64:
             raise HTTPException(400, 'midi_inputs must be "*", "" or a JSON list of MIDI input names')
         value = json.dumps(ids)
+    if key == "pro_tools_root" and value and not os.path.isfile(os.path.join(value, "ProTools.exe")):
+        raise HTTPException(400, "That folder has no ProTools.exe. Point it at the Pro Tools install folder.")
     if key == "fl_studio_root" and value and not os.path.isdir(value):
         raise HTTPException(400, "That folder doesn't exist. Point it at the FL Studio install folder (the one containing Plugins\\).")
     with db.connect(DB_PATH) as conn:
@@ -2600,6 +2682,10 @@ def settings_update(key: str, body: SettingUpdate):
                                       "restore or permanently delete everything in the Quarantine tab first.")
         previous = db.get_setting(conn, key, _SETTINGS_DEFAULTS[key])
         db.set_setting(conn, key, value)
+        if key == "pro_tools_root":
+            scan_service.apply_aax_rule(conn, scan_service.pro_tools_present(conn))
+    if key == "watch_plugin_folders":
+        plugin_watch.reload()
     if key == "plugin_memory_limit_gb" and int(value) > int(previous if str(previous).isdigit() else 0):
         plugin_host.forget_memory_failures()  # what needed more may open now
     # Applied to the open plugin right away (in the background: restarting its sound takes a moment).
@@ -2628,9 +2714,9 @@ def propose_action(body: ActionCreate):
         if target is None:
             raise HTTPException(404, "plugin not found")
         if target["fl_cloud"]:
-            raise HTTPException(409, "This is an FL Cloud plugin — it must stay at its original install path "
-                                     "for FL Cloud authorization, so it can't be moved or quarantined. "
-                                     "Unmark it in the FL Cloud tab first if you really want that.")
+            raise HTTPException(409, "This plugin is marked Unorganizable — it must stay at its original install path "
+                                     "(FL Cloud authorization, for one), so it can't be moved or quarantined. "
+                                     "Unmark it from its details first if you really want that.")
         existing = db.active_action_for_plugin(conn, body.plugin_id)
         if existing is not None:
             state = "already applied (check the Quarantine tab)" if existing["applied"] else "already pending"
@@ -2674,7 +2760,7 @@ def apply_action(action_id: int):
         if row["applied"]:
             raise HTTPException(400, "already applied")
         if row["host_path"].lower() in db.fl_cloud_host_paths(conn):
-            raise HTTPException(409, "This plugin is marked FL Cloud and must stay at its install path — reject this action.")
+            raise HTTPException(409, "This plugin is marked Unorganizable and must stay at its install path — reject this action.")
 
         try:
             if row["action"] == "quarantine":
@@ -2939,6 +3025,7 @@ class FlSyncApply(BaseModel):
     pictures: bool = True             # VEXT's pictures as FL thumbnails (hidden .png + .nfo)
     replace_thumbnails: bool = False  # also replace thumbnails VEXT didn't make (backed up first)
     thumb_size: int = 256             # the one global thumbnail height: 256 (Large), 128 (Medium), 64 (Compact)
+    unorganizable: dict[str, list[str]] = {}  # {"Effects": ["<key>", ...]}: matched plugins to mark Unorganizable
 
 
 class FlSyncFixPictures(BaseModel):
@@ -2971,6 +3058,7 @@ def fl_sync_apply(body: FlSyncApply):
             summary = fl_reorganize.apply(
                 conn, body.mode, body.overrides, body.sections, body.dangerous_wipe, body.save_backup,
                 body.scope, body.pictures, body.replace_thumbnails, thumb_height=body.thumb_size,
+                unorganizable=body.unorganizable,
             )
         except OSError as exc:
             raise HTTPException(409, f"Filesystem error: {exc}")
@@ -2979,7 +3067,8 @@ def fl_sync_apply(body: FlSyncApply):
         applog.log_event(
             f"FL Studio sync ({section}, {'complete' if body.scope == 'full' else 'new only'}): filed "
             f"{s['applied']}, {s['unmatched']} unmatched (root), {s['moved']} moved, "
-            f"{s['renamed']} name(s) synced from FL. Backup: {s['backup'] or 'n/a'}."
+            f"{s['renamed']} name(s) synced from FL, {s['unorganizable']} marked Unorganizable. "
+            f"Backup: {s['backup'] or 'n/a'}."
             + (f" Thumbnails: {pics['added']} added, {pics['updated']} updated, {pics['kept']} kept, "
                f"{pics['missing']} without a VEXT picture." if pics else "")
         )

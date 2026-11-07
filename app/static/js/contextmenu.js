@@ -53,13 +53,13 @@
   // ---------- entries ----------
 
   // Same disabled rules as the modal's buttons: nothing new may be proposed while an action is pending
-  // or applied-but-unresolved, and an FL Cloud plugin is pinned to its install path.
+  // or applied-but-unresolved, and an Unorganizable plugin is pinned to its install path.
   function buildEntries(p, settings) {
     const a = p.action_status;
     const busy = a
       ? `A ${a.action} action is ${a.applied ? 'applied but not resolved yet' : 'already proposed'} for this plugin. Resolve it first (Actions / Quarantine).`
       : '';
-    const pinned = p.fl_cloud ? 'FL Cloud plugin — must stay at its install path' : '';
+    const pinned = p.fl_cloud ? 'Unorganizable plugin — must stay at its install path' : '';
     const tauri = isTauri();
     const list = [
       { label: 'Details', icon: 'info', isDefault: true, run: () => V.showPluginModal(p.id) },
@@ -93,8 +93,8 @@
         run: () => V.proposeAction(p.id, 'quarantine', 'Manually flagged for quarantine from plugin detail'),
       },
       settings.fl_studio_installed && {
-        label: p.fl_cloud ? 'Unmark FL Cloud' : 'Mark as FL Cloud', icon: 'cloud',
-        hint: p.fl_cloud ? '' : 'Keeps it where it is installed: never moved, deduped or quarantined.',
+        label: p.fl_cloud ? 'Unmark Unorganizable' : 'Mark as Unorganizable', icon: 'cloud',
+        hint: p.fl_cloud ? '' : 'Keeps it where it is installed (FL Cloud plugins, for one): never moved, deduped or quarantined.',
         disabled: !p.fl_cloud && busy,
         run: () => setFlCloud(p),
       },
@@ -155,7 +155,7 @@
       await V.api(`/api/plugins/${p.id}/fl-cloud`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !p.fl_cloud }),
       });
-      V.toast(p.fl_cloud ? 'Unmarked FL Cloud.' : 'Marked FL Cloud — it will stay where it is installed.');
+      V.toast(p.fl_cloud ? 'Unmarked Unorganizable.' : 'Marked Unorganizable — it will stay where it is installed.');
       V.refresh();
     } catch (e) { V.handleActionError(e); }
   }

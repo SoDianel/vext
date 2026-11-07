@@ -149,6 +149,34 @@ def detect_fl_studio_root(override: str = "") -> tuple[str, str]:
     return str(Path(PROGRAM_FILES) / "Image-Line" / "FL Studio"), "default"
 
 
+_PRO_TOOLS_NAME_RE = re.compile(r"^Pro Tools\b", re.IGNORECASE)
+
+
+def pro_tools_installed(folder: str) -> bool:
+    return bool(folder) and (Path(folder) / "ProTools.exe").is_file()
+
+
+def detect_pro_tools_root(override: str = "") -> tuple[str, str]:
+    """(install folder, how it was found), or ("", "") when Pro Tools isn't on this PC.
+    AAX plugins only load in Pro Tools, so this decides whether VEXT suggests removing
+    them (scan_service.apply_aax_rule). `override` is the Configuration tab's folder."""
+    if override.strip():
+        return override.strip(), "manual"
+    base = Path(PROGRAM_FILES) / "Avid"
+    if base.is_dir():
+        for install in sorted(base.glob("Pro Tools*"), reverse=True):
+            if pro_tools_installed(str(install)):
+                return str(install), "folder"
+    for display, uninstall in _registry_uninstall_entries():
+        if not _PRO_TOOLS_NAME_RE.match(display):
+            continue
+        exe = uninstall.strip().strip('"')
+        # An MSI entry's UninstallString is msiexec, which says nothing about the folder.
+        if exe.lower().endswith(".exe") and pro_tools_installed(str(Path(exe).parent)):
+            return str(Path(exe).parent), "registry"
+    return "", ""
+
+
 def detect_locations(fl_studio_override: str = "") -> list[Location]:
     """Every standard plugin location for this machine, in display order."""
     fl_root, fl_source = detect_fl_studio_root(fl_studio_override)

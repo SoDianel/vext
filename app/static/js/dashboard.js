@@ -390,7 +390,7 @@
     const link = '<button type="button" class="dash-link" data-nav="flsync">FL Studio Sync →</button>';
     return block('fl', 'FL Studio', link, `
       <div class="dash-gauges">${gauge('Known to FL Studio', fl.detected || 0, d.total, 1)}</div>
-      <div class="dash-kv"><span>FL Cloud plugins</span><strong>${num(fl.fl_cloud)}</strong></div>`, null);
+      <div class="dash-kv"><span>Unorganizable plugins</span><strong>${num(fl.fl_cloud)}</strong></div>`, null);
   }
 
   function categoriesHtml(d, order) {

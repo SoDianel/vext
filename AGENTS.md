@@ -81,6 +81,18 @@ rule or a decision is missing here, ask in an issue.
   the registry, so `lib.rs:use_unregistered_webview2` points `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` at the
   newest installed runtime folder before the window opens. Tested in the Sandbox by hand (2026-10-21) and by
   `tools/sandbox/sandbox_test.ps1`, which now opens the app and fails if no window appears.
+- **Folder watcher** (`app/plugin_watch.py`, setting `watch_plugin_folders`, on by default): Windows change
+  notifications on every enabled scan folder; after 20 s of quiet it lists plugin entries (names and the bundle
+  binary's time, no metadata) and runs the normal scan only for a change the catalog doesn't know (install,
+  uninstall, update). VEXT's own moves and a plugin writing inside its bundle must not trigger it. Scans are
+  serialized by `scan_service._scan_lock`. `scanner.candidate_entries` is the one walk both use.
+- **One row per plugin** in Browse (`?unify=1`, `dedup.unify_groups`): every format, bitness and folder of a
+  plugin is one row with a badge per copy (VST = VstPlugins, VST2 = Common Files\VST2). Grouping keys strip
+  format/bitness tags and the vendor's name in front (`dedup.group_key`). A copy without a vendor joins a group
+  only for display, and only when its name has one vendor: quarantine proposals still need a vendor on both sides.
+- **AAX and Pro Tools**: AAX is never superseded by another format. It is flagged for removal only while Pro
+  Tools isn't installed (`scan_service.apply_aax_rule`, Configuration › DAWs). Obsolete-format suggestions
+  (`suggest_obsolete_formats`) are off by default: an older format is often kept for a DAW.
 - **Paths and names**: nothing in the code may assume a particular user name, drive or folder layout. Use the
   environment (`USERPROFILE`, `SystemDrive`) or a Configuration setting.
 
