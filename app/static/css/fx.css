@@ -1,0 +1,217 @@
+/* Visual effects (js/fx.js, Configuration > General > Visual effects).
+   One motion language for the whole app: short (120-300 ms), eased out, never in the way
+   of input. Everything here is gated on <html data-fx="on|off">:
+     on  = these effects run;
+     off = no WebGL, no animation loops, every transition and animation finishes at once
+           (the static end state is the normal look). Progress spinners keep a slow turn.
+   The tokens are mirrored in js/fx.js (T, EASE) for the Web Animations it starts. */
+
+:root {
+  --fx-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --fx-ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --fx-ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --fx-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --fx-t-fast: 120ms;
+  --fx-t-base: 200ms;
+  --fx-t-slow: 300ms;
+  --fx-t-reveal: 700ms;
+  --fx-stagger: 28ms;
+  --fx-rise: 6px;
+}
+:root[data-fx="off"] {
+  --fx-t-fast: 0ms;
+  --fx-t-base: 0ms;
+  --fx-t-slow: 0ms;
+  --fx-t-reveal: 0ms;
+  --fx-stagger: 0ms;
+  --fx-rise: 0px;
+}
+
+/* ---------- Off: instant UI ---------- */
+:root[data-fx="off"] *,
+:root[data-fx="off"] *::before,
+:root[data-fx="off"] *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+/* Progress indicators still say "working" (slowly, like reduced motion). */
+:root[data-fx="off"] .spinner,
+:root[data-fx="off"] .cm-spinner,
+:root[data-fx="off"] .scan-btn.scanning::after { animation-duration: 2.4s !important; }
+
+/* ---------- keyframes ---------- */
+@keyframes fx-fade { from { opacity: 0; } }
+@keyframes fx-fade-out { to { opacity: 0; } }
+@keyframes fx-rise { from { opacity: 0; transform: translateY(var(--fx-rise)); } }
+@keyframes fx-pop { from { opacity: 0; transform: scale(0.96); } }
+@keyframes fx-modal-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
+@keyframes fx-modal-out { to { opacity: 0; transform: translateY(6px) scale(0.985); } }
+@keyframes fx-toast-out { to { opacity: 0; transform: translate(-50%, 8px) scale(0.98); } }
+@keyframes fx-toast-up-out { to { opacity: 0; transform: translate(-50%, -8px) scale(0.98); } }
+@keyframes fx-pill {
+  from { background-color: transparent; color: var(--fg); transform: scale(0.97); }
+}
+@keyframes fx-flash {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent), inset 0 0 0 999px color-mix(in srgb, var(--accent) 16%, transparent); }
+  100% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent), inset 0 0 0 999px transparent; }
+}
+@keyframes fx-sweep { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+
+/* ---------- sections, panes and tabs: the new one eases in ---------- */
+/* Opacity only for whole sections: a transform would move the rectangle the Playground
+   measures for its native browser view. */
+:root[data-fx="on"] main > .panel.active { animation: fx-fade var(--fx-t-base) var(--fx-ease-out) both; }
+:root[data-fx="on"] .actions-group.active,
+:root[data-fx="on"] .metadata-pane.active,
+:root[data-fx="on"] .config-pane.active,
+:root[data-fx="on"] .ref-pane.active {
+  animation: fx-rise var(--fx-t-slow) var(--fx-ease-out) both;
+}
+
+/* The selected sidebar item fills in rather than snapping. */
+:root[data-fx="on"] .sidebar button.active { animation: fx-pill var(--fx-t-base) var(--fx-ease-out); }
+
+/* Segmented controls and chips: the selection settles in. */
+:root[data-fx="on"] .segmented button,
+:root[data-fx="on"] .chip,
+:root[data-fx="on"] .view-toggle button {
+  transition: background-color var(--fx-t-fast) var(--fx-ease-out), color var(--fx-t-fast) var(--fx-ease-out),
+    box-shadow var(--fx-t-fast) var(--fx-ease-out), transform 0.06s ease;
+}
+
+/* ---------- modals, confirmations, toasts ---------- */
+:root[data-fx="on"] .modal-backdrop { animation: fx-fade var(--fx-t-base) var(--fx-ease-out) both; }
+:root[data-fx="on"] .modal { animation: fx-modal-in var(--fx-t-slow) var(--fx-ease-out) both; }
+/* A modal re-rendered in place (Save, refresh) doesn't play its entrance again. */
+.fx-no-enter,
+.fx-no-enter .modal { animation: none !important; }
+
+/* Closed modals leave as a copy in this layer (js/fx.js), so closing never waits. */
+.fx-ghosts { position: fixed; inset: 0; z-index: 160; pointer-events: none; }
+.fx-ghosts:empty { display: none; }
+.fx-ghosts > * { pointer-events: none !important; }
+:root[data-fx="on"] .fx-ghosts .modal-backdrop.fx-leaving {
+  animation: fx-fade-out var(--fx-t-base) var(--fx-ease-in) both;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-fx="on"] .fx-ghosts .fx-leaving .modal { animation: fx-modal-out var(--fx-t-base) var(--fx-ease-in) both; }
+
+:root[data-fx="on"] #toast-root .toast { animation-duration: var(--fx-t-slow); animation-timing-function: var(--fx-ease-out); }
+:root[data-fx="on"] #toast-root .toast.fx-out { animation: fx-toast-out var(--fx-t-base) var(--fx-ease-in) both; }
+:root[data-fx="on"][data-section="playground"] #toast-root .toast.fx-out { animation-name: fx-toast-up-out; }
+
+/* ---------- lists ---------- */
+/* A long list (fx.flip) isn't measured: its first rows rise in as they are inserted. */
+@keyframes fx-row-in { from { opacity: 0; transform: translateY(4px); } }
+:root[data-fx="on"] .fx-fresh > :nth-child(-n+30) { animation: fx-row-in var(--fx-t-slow) var(--fx-ease-out) both; }
+:root[data-fx="on"] .fx-fresh > :nth-child(n+11):nth-child(-n+30) { animation-delay: 40ms; }
+
+/* A row or card that was just acted on. */
+.fx-flash { animation: fx-flash 0.9s var(--fx-ease-out); }
+:root[data-fx="off"] .fx-flash { animation: none; }
+
+/* Browse: a thin light runs under the filters while a search takes a moment. */
+.browse-sticky::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent) no-repeat;
+  background-size: 40% 100%;
+  transition: opacity var(--fx-t-base) var(--fx-ease-out);
+}
+:root[data-fx="on"] .browse-sticky.is-loading::after {
+  opacity: 1;
+  animation: fx-sweep 0.9s var(--fx-ease-inout) infinite;
+}
+
+/* ---------- view transitions (list <-> tiles) ---------- */
+/* The page stays clickable underneath: the transition is only a picture of it. */
+::view-transition { pointer-events: none; }
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--fx-t-base);
+  animation-timing-function: var(--fx-ease-out);
+}
+::view-transition-group(*.fx-item) {
+  animation-duration: var(--fx-t-slow);
+  animation-timing-function: var(--fx-ease-out);
+  overflow: clip;
+  border-radius: var(--radius-m);
+}
+/* A row and its tile have very different shapes: don't stretch the pictures, crossfade
+   them pinned to the top left while the box itself morphs. */
+::view-transition-old(*.fx-item),
+::view-transition-new(*.fx-item) {
+  width: auto;
+  height: auto;
+  object-fit: none;
+  object-position: left top;
+  animation-duration: var(--fx-t-slow);
+  animation-timing-function: var(--fx-ease-out);
+}
+::view-transition-old(*.fx-item) { animation-duration: var(--fx-t-base); }
+/* The window's toolbar and the pinned Browse bar stay above the items that morph (a row
+   half under the bar would otherwise be drawn over it while it moves). */
+.toolbar { view-transition-name: vext-toolbar; }
+#browse-sticky { view-transition-name: vext-browse-bar; }
+::view-transition-group(vext-toolbar),
+::view-transition-group(vext-browse-bar) { z-index: 2; }
+
+/* ---------- Scan: the 3D stage around the button ---------- */
+/* Without effects (or without WebGL) the stage is just the button. */
+.scan-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+.scan-stage > .scan-btn { z-index: 1; }
+/* The canvas is as wide as the orbits need (about twice the stage's height), never wider
+   than the hero: its backing store is what each frame clears. */
+.scan-fx {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: block;
+  width: min(100%, calc(var(--scan-stage-h, 220px) * 2.1));
+  height: 100%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--fx-t-slow) var(--fx-ease-out);
+}
+.scan-fx.is-ready { opacity: 1; }
+/* Taller with the halo, sized to the first screen (--scan-stage-h, style.css: about 58% of
+   main's height, at most 46% of the hero's width, 220-640 px); it may reach a little into
+   the gap below (the top margin stays the hero's auto margin that centres the group). */
+:root[data-fx="on"] .scan-stage.fx-3d { height: var(--scan-stage-h, 220px); margin-bottom: -14px; }
+/* The canvas draws its own orbit; the CSS ring would double it. */
+.scan-stage.fx-3d .scan-btn::after { opacity: 0; animation: none; }
+.scan-stage.fx-3d .scan-btn {
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 30%, transparent), inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+:root[data-fx="on"] .scan-btn { transition: background-color var(--fx-t-fast) ease, box-shadow var(--fx-t-slow) var(--fx-ease-out), transform var(--fx-t-fast) var(--fx-ease-out); }
+:root[data-fx="on"] .scan-btn:not(:disabled):hover { transform: translateY(-1px) scale(1.02); }
+:root[data-fx="on"] .scan-btn:not(:disabled):active { transform: scale(0.96); }
+
+/* The picture wall behind the hero (js/scan-wall.js) is moved by the 3D scene with a
+   transform (parallax, the sway while scanning): its own layer, so nothing is repainted. */
+:root[data-fx="on"] #panel-scan.active .scan-wall > canvas { will-change: transform; }
+
+/* "Browse" at the foot of the Scan hero nudges down a few times when the section opens. */
+@keyframes fx-bob { 0%, 100% { transform: none; } 50% { transform: translateX(3px); } }
+.scan-jump-arrow { display: inline-block; }
+:root[data-fx="on"] #panel-scan.active .scan-jump-arrow { animation: fx-bob 1.4s var(--fx-ease-inout) 0.9s 3; }
+
+/* ---------- Configuration > General > Visual effects ---------- */
+.fx-status { margin: 10px 0 0; color: var(--fg-3); font-size: 12px; }
+.fx-status:empty { display: none; }

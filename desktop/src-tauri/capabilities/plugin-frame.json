@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "plugin-frame",
+  "description": "The plugin frame's title bar (plugin-frame.html): native Capture menu, events to the main page, moving/toggling/closing itself.",
+  "webviews": ["plugin-frame"],
+  "permissions": [
+    "core:default",
+    "allow-plugin-frame-move",
+    "allow-plugin-frame-toggle",
+    "allow-plugin-frame-close",
+    "allow-plugin-frame-info",
+    "allow-plugin-frame-bypass",
+    "allow-plugin-frame-scroll"
+  ]
+}

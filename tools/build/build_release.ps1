@@ -1,0 +1,218 @@
+# Builds a complete, distributable VEXT for Windows 10/11 (x64) and
+# collects every file a user needs into .\release\:
+#
+#   release\VEXT-<version>-setup.exe        Installer (per-user). Carries everything a
+#                                           PC needs: WebView2 (offline) and Microsoft's
+#                                           Visual C++ runtimes (installed if missing or
+#                                           older; Windows asks for permission once)
+#   release\VEXT-<version>-portable\        Unzip-and-run folder (vext.exe +
+#                                           vext-backend.exe, which must sit together,
+#                                           and redist\ for the in-app runtime Repair)
+#   release\SHA256SUMS.txt                         Checksums for every shipped file
+#
+# Also checks the version (tauri.conf.json = Cargo.toml = package.json) and, when
+# VEXT_SIGN_PFX or VEXT_SIGN_AZURE_DLIB is set, signs the exes and installer (tools\release\sign_file.ps1).
+#
+# Steps: 0) refresh the logo files from sources\ (update_logo.ps1) and fetch
+# Microsoft's runtime installers (tools\build\fetch_redist.ps1, signature-checked),
+# 1) bundle the Python backend into a single sidecar exe (PyInstaller) and check
+# it carries no private C++ runtime (tools\build\check_bundle.py), and the 32-bit plugin
+# host into host32\ (tools\build\build_host32.ps1, same check), 2) build the Tauri
+# desktop shell and its installer, 3) collect and verify.
+# No MSI: an MSI can't run the runtime installers; setup.exe can.
+# Run from the repository root:  .\tools\build\build_release.ps1
+#
+# Prerequisites (one-time, see LOCAL_SETUP.md): Python 3.10+, Node.js, Rust (rustup),
+# and the MSVC C++ Build Tools.
+
+$ErrorActionPreference = "Stop"
+$root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$desktop = Join-Path $root "desktop"
+$tauriDir = Join-Path $desktop "src-tauri"
+$release = Join-Path $root "release"
+
+# The maintainer authorizes stopping VEXT from this checkout before a rebuild.
+function Stop-WorkspaceVext {
+    $workspacePrefix = [IO.Path]::GetFullPath($root).TrimEnd('\') + '\'
+    $workspaceVext = Get-CimInstance Win32_Process -Filter "Name = 'VEXT.exe' OR Name = 'vext-backend.exe' OR Name = 'vext-host32.exe'" |
+        Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($workspacePrefix, [StringComparison]::OrdinalIgnoreCase) }
+    foreach ($vextProcess in $workspaceVext) {
+        Write-Host "==> Closing workspace VEXT process $($vextProcess.ProcessId)"
+        Stop-Process -Id $vextProcess.ProcessId -Force -ErrorAction SilentlyContinue
+        Wait-Process -Id $vextProcess.ProcessId -Timeout 15 -ErrorAction SilentlyContinue
+    }
+}
+Stop-WorkspaceVext
+
+# Native tools write progress to stderr. Under $ErrorActionPreference = "Stop"
+# PowerShell turns that into a terminating error, so run them through cmd and
+# judge success by exit code only.
+function Invoke-Native([string]$label, [string]$command) {
+    Write-Host "==> $label"
+    cmd /c "$command 2>&1"
+    if ($LASTEXITCODE -ne 0) { throw "$label failed (exit $LASTEXITCODE)" }
+}
+
+$version = (Get-Content (Join-Path $tauriDir "tauri.conf.json") -Raw | ConvertFrom-Json).version
+
+& (Join-Path $root "tools\release\check_version.ps1")
+# Capture this before icon generation or dependency tools can change the checkout.
+$sourceCommit = git -C $root rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw "Build from a git checkout so the source commit can be recorded" }
+$sourceDirty = [bool](git -C $root status --porcelain --untracked-files=normal)
+
+# Optional code signing: runs only when VEXT_SIGN_PFX or VEXT_SIGN_AZURE_DLIB is set (tools\release\sign_file.ps1).
+$signing = [bool]($env:VEXT_SIGN_PFX -or $env:VEXT_SIGN_AZURE_DLIB)
+$signScript = Join-Path $root "tools\release\sign_file.ps1"
+if ($signing) { Write-Host "==> Code signing is on" } else { Write-Host "==> Code signing is off (no VEXT_SIGN_* variables): the builds will be unsigned" -ForegroundColor Yellow }
+$venvPython = Join-Path $root ".venv-native\Scripts\python.exe"
+
+# 0) Logo: app icons and the in-app logo from sources\ ----------------------
+& (Join-Path $root "tools\branding\update_logo.ps1")
+& (Join-Path $root "tools\build\fetch_redist.ps1")
+
+# 1) Python backend -> sidecar ----------------------------------------------
+if (-not (Test-Path $venvPython)) {
+    Invoke-Native "Creating .venv-native" "python -m venv `"$root\.venv-native`""
+    Invoke-Native "Installing backend dependencies" "`"$venvPython`" -m pip install --upgrade pip"
+    Invoke-Native "Installing backend dependencies" "`"$venvPython`" -m pip install -r `"$root\requirements.txt`" pyinstaller"
+}
+Push-Location $root
+try {
+    & (Join-Path $root "tools\build\build_fl_native.ps1")
+    # Runs the checked-in vext-backend.spec (not the plain CLI-flags form) — it
+    # carries a binaries filter that strips a stale, ABI-incompatible bundled
+    # MSVCP140.dll; see the spec file's own header comment for why.
+    Invoke-Native "Bundling backend sidecar (PyInstaller)" "`"$venvPython`" -m PyInstaller --noconfirm vext-backend.spec"
+    # A private copy of the C++ runtime in the bundle crashed every plugin once: never again.
+    Invoke-Native "Checking the bundle for a private C++ runtime" "`"$venvPython`" tools\build\check_bundle.py dist\vext-backend.exe"
+} finally { Pop-Location }
+
+$sidecarDir = Join-Path $tauriDir "binaries"
+New-Item -ItemType Directory -Force -Path $sidecarDir | Out-Null
+$sidecar = Join-Path $sidecarDir "vext-backend-x86_64-pc-windows-msvc.exe"
+Copy-Item (Join-Path $root "dist\vext-backend.exe") $sidecar -Force
+
+# The 32-bit plugin host -> desktop\src-tauri\host32 (a bundle resource: $INSTDIR\host32)
+& (Join-Path $root "tools\build\build_host32.ps1")
+
+# 2) Desktop shell and installers -----------------------------------------
+Push-Location $desktop
+try {
+    # With signing on, Tauri signs VEXT.exe and the installer itself through a throwaway config
+    # (*.local.json is git-ignored).
+    $tauriArgs = ""
+    if ($signing) {
+        $signCfg = Join-Path $tauriDir "sign.local.json"
+        $cmd = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$signScript`" `"%1`""
+        @{ bundle = @{ windows = @{ signCommand = $cmd } } } | ConvertTo-Json -Depth 5 | Set-Content $signCfg -Encoding utf8
+        $tauriArgs = " -- --config src-tauri/sign.local.json"
+    }
+    try {
+        Invoke-Native "Building desktop app and installers (Tauri)" "npm run tauri build$tauriArgs"
+    } finally {
+        if ($signing) { Remove-Item (Join-Path $tauriDir "sign.local.json") -ErrorAction SilentlyContinue }
+    }
+} finally { Pop-Location }
+
+$bundle = Join-Path $tauriDir "target\release\bundle"
+$exe = Join-Path $tauriDir "target\release\vext.exe"
+$nsis = Get-Item (Join-Path $bundle "nsis\VEXT_${version}_x64-setup.exe") -ErrorAction SilentlyContinue
+if (-not $nsis -or -not (Test-Path $exe)) {
+    throw "Expected installer or exe output is missing under $bundle"
+}
+
+# 3) Collect into release\ --------------------------------------------------
+# Emptied, not deleted: Windows Sandbox (tools\sandbox) maps this folder and can hold it.
+New-Item -ItemType Directory -Force -Path $release | Out-Null
+# Check the absolute destination before recursively clearing build output.
+$release = [IO.Path]::GetFullPath($release)
+if ($release -ne [IO.Path]::GetFullPath((Join-Path $root "release"))) { throw "Unexpected release directory" }
+Stop-WorkspaceVext
+Get-ChildItem $release -Force | Remove-Item -Recurse -Force
+
+$setupName = "VEXT-$version-setup.exe"
+Copy-Item $nsis.FullName (Join-Path $release $setupName)
+
+# The portable build is two files that must sit side by side: the Tauri shell
+# starts the backend from its own folder. Tauri names the sidecar without the
+# target triple at runtime, so ship it under that name.
+$portable = Join-Path $release "VEXT-$version-portable"
+New-Item -ItemType Directory -Force -Path $portable | Out-Null
+Copy-Item $exe (Join-Path $portable "VEXT.exe")
+Copy-Item $sidecar (Join-Path $portable "vext-backend.exe")
+Copy-Item (Join-Path $tauriDir "redist") (Join-Path $portable "redist") -Recurse
+Copy-Item (Join-Path $tauriDir "host32") (Join-Path $portable "host32") -Recurse
+Copy-Item (Join-Path $root "LICENSE") $portable
+Copy-Item (Join-Path $root "THIRD_PARTY_NOTICES.md") $portable
+New-Item -ItemType Directory -Force -Path (Join-Path $portable "docs") | Out-Null
+foreach ($doc in @("FL_NATIVE_COMPATIBILITY.md", "FL_NATIVE_SCOPE.md")) {
+    Copy-Item (Join-Path $root "docs\$doc") (Join-Path $portable "docs\$doc")
+}
+Copy-Item (Join-Path $root "LICENSE") $release
+Copy-Item (Join-Path $root "THIRD_PARTY_NOTICES.md") $release
+@"
+VEXT $version (portable)
+
+This is a testing candidate. FL native compatibility and scope: docs\.
+Build source status is recorded in BUILD_PROVENANCE.json.
+
+Keep VEXT.exe, vext-backend.exe and the host32 folder (it opens 32-bit
+plugins) in the same folder, then run VEXT.exe. Nothing is installed and no admin rights are needed for scanning.
+Data (database, quarantine, logs) is stored in %APPDATA%\com.vext.app.
+
+Requires Microsoft Edge WebView2 (preinstalled on Windows 11 and current Windows 10)
+and Microsoft's Visual C++ runtime. If VEXT says the runtime is missing or damaged,
+its Repair button installs it from redist\ (keep that folder next to VEXT.exe).
+The setup.exe installer brings both by itself.
+"@ | Set-Content -Path (Join-Path $portable "README.txt") -Encoding utf8
+
+# Verify nothing required is missing before reporting success.
+$required = @(
+    (Join-Path $release $setupName),
+    (Join-Path $portable "LICENSE"),
+    (Join-Path $portable "docs\FL_NATIVE_COMPATIBILITY.md"),
+    (Join-Path $portable "docs\FL_NATIVE_SCOPE.md"),
+    (Join-Path $portable "THIRD_PARTY_NOTICES.md"),
+    (Join-Path $portable "redist\vc_redist.x64.exe"),
+    (Join-Path $portable "redist\vc_redist.x86.exe"),
+    (Join-Path $portable "host32\vext-host32.exe"),
+    (Join-Path $portable "redist\install-runtimes.ps1"),
+    (Join-Path $portable "VEXT.exe"),
+    (Join-Path $portable "vext-backend.exe")
+)
+foreach ($f in $required) { if (-not (Test-Path $f)) { throw "Missing release file: $f" } }
+
+if ($signing) {
+    foreach ($f in @((Join-Path $release $setupName), (Join-Path $portable "VEXT.exe"), (Join-Path $portable "vext-backend.exe"))) {
+        $sig = Get-AuthenticodeSignature $f
+        if ($sig.Status -ne "Valid") { throw "Signature check failed for ${f}: $($sig.Status)" }
+    }
+}
+
+[ordered]@{
+    schema_version = 1
+    version = $version
+    commit = $sourceCommit
+    source_dirty = $sourceDirty
+    built_at_utc = [DateTime]::UtcNow.ToString("o")
+    workflow_run = if ($env:GITHUB_ACTIONS) { "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID" } else { $null }
+} | ConvertTo-Json | Set-Content (Join-Path $release "BUILD_PROVENANCE.json") -Encoding utf8
+
+Copy-Item (Join-Path $release "BUILD_PROVENANCE.json") $portable
+
+# A ready-to-unzip portable artifact is useful for local testing too. Publication
+# remains guarded by publish_release.ps1's clean-source check.
+Compress-Archive -Path $portable -DestinationPath (Join-Path $release "VEXT-$version-portable.zip") -CompressionLevel Optimal
+
+$sums = Get-ChildItem $release -Recurse -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
+    $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+    "$hash  $($_.FullName.Substring($release.Length + 1).Replace('\', '/'))"
+}
+$sums | Set-Content -Path (Join-Path $release "SHA256SUMS.txt") -Encoding utf8
+
+Write-Host ""
+Write-Host "Release $version ready in $release" -ForegroundColor Green
+Get-ChildItem $release -Recurse -File | ForEach-Object {
+    "{0,10:N1} MB  {1}" -f ($_.Length / 1MB), $_.FullName.Substring($release.Length + 1)
+}

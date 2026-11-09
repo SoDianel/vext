@@ -1,0 +1,149 @@
+/* Plugin context menu (js/contextmenu.js): a native-feeling popover for one plugin, opened by
+   right-clicking a row/tile/card or by its trailing "⋯" button. Tokens only, so the light and
+   dark themes both follow the Appearance setting. */
+
+.cm {
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* Over modals (100) and the confirm sheet (150): a menu opened from inside a modal still shows.
+     The hover tooltip (300) is hidden by the script while a menu is open. */
+  z-index: 280;
+  min-width: 236px;
+  max-width: min(340px, calc(100vw - 12px));
+  overflow-y: auto;
+  padding: 5px;
+  border-radius: var(--radius-m);
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-2), 0 0 0 0.5px var(--separator-strong);
+  color: var(--fg);
+  font: 13px/1.3 var(--font);
+  -webkit-user-select: none;
+  user-select: none;
+  outline: none;
+}
+.cm.is-pending { visibility: hidden; }
+.cm.is-shown { animation: cm-in 0.09s ease-out; }
+@keyframes cm-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
+
+/* Which plugin this menu is for: name, then format · vendor. */
+.cm-head {
+  min-width: 0;
+  margin-bottom: 4px;
+  padding: 4px 9px 7px;
+  border-bottom: 1px solid var(--separator);
+}
+.cm-name,
+.cm-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-name { font-weight: 600; }
+.cm-sub { margin-top: 1px; color: var(--fg-3); font-size: 11px; }
+
+/* Entries. ".cm" in front so these beat the global button / button:hover / :focus-visible rules. */
+.cm .cm-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  width: 100%;
+  height: 28px;
+  padding: 0 14px 0 8px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: default;
+  transform: none;
+  transition: none;
+}
+.cm .cm-item:hover { background: transparent; }
+.cm .cm-item:focus,
+.cm .cm-item:focus-visible {
+  outline: none;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.cm .cm-item:active { transform: none; }
+
+.cm .cm-icon { flex: none; width: 16px; height: 16px; color: var(--fg-3); }
+.cm .cm-item:focus .cm-icon { color: inherit; }
+.cm .cm-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* The default action (same as a left click on the row) is bold, as in Windows Explorer. */
+.cm .cm-item.is-default .cm-label { font-weight: 600; }
+
+.cm .cm-item.is-danger,
+.cm .cm-item.is-danger .cm-icon { color: var(--danger); }
+.cm .cm-item.is-danger:focus,
+.cm .cm-item.is-danger:focus-visible { background: var(--danger-soft); color: var(--danger); }
+
+/* Disabled entries stay reachable (their tooltip says why) but never act. */
+.cm .cm-item[aria-disabled="true"],
+.cm .cm-item[aria-disabled="true"] .cm-icon { color: var(--fg-3); }
+.cm .cm-item[aria-disabled="true"] .cm-label,
+.cm .cm-item[aria-disabled="true"] .cm-icon { opacity: 0.6; }
+.cm .cm-item[aria-disabled="true"]:focus,
+.cm .cm-item[aria-disabled="true"]:focus-visible { background: var(--bg-hover); color: var(--fg-3); }
+
+.cm-sep { height: 1px; margin: 4px 8px; background: var(--separator); }
+
+.cm-loading,
+.cm-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  color: var(--fg-3);
+}
+.cm-error {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  color: var(--fg-2);
+  white-space: normal;
+}
+.cm-error span { color: var(--fg-3); font-size: 12px; overflow-wrap: anywhere; }
+
+.cm-spinner {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: cm-spin 0.8s linear infinite;
+}
+@keyframes cm-spin { to { transform: rotate(360deg); } }
+
+/* The row/tile/card whose menu is open (Finder-style ring). */
+.cm-target { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Baseline look for the trailing "⋯" button. Specificity of a bare `button`, so it beats the
+   global button rule (loaded earlier) but any .row-menu-btn rule in style.css still wins. */
+button:where(.row-menu-btn) {
+  flex: none;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-3);
+  font-size: 15px;
+  line-height: 1;
+}
+button:where(.row-menu-btn):hover,
+button:where(.row-menu-btn)[aria-expanded="true"] { background: var(--bg-hover); color: var(--fg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cm.is-shown { animation: none; }
+  .cm-spinner { animation-duration: 2.4s; }
+}

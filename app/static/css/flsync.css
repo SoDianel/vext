@@ -1,0 +1,385 @@
+/* FL Studio Sync: the status header, the two tabs and the Organize tab (js/flsync.js).
+   Palette tokens only (style.css). A pressed segment or selected chip is accent-filled
+   (accent + accent-fg) so it stays visible in dark mode too. */
+
+.fls { min-width: 0; }
+.fls [hidden] { display: none !important; }
+
+/* ---------- header ---------- */
+
+.fls-head { padding-bottom: 2px; }
+.fls-head-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px 28px;
+}
+.fls-head-main { flex: 1 1 320px; min-width: 0; }
+.fls-title {
+  margin: 0;
+  color: var(--fg);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.fls-root {
+  margin: 4px 0 10px;
+  color: var(--fg-3);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+.fls-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.fls-thumbs {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+.fls-label {
+  color: var(--fg-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.fls-thumbs .segmented { margin: 0; }
+.fls-hint {
+  margin: 0;
+  color: var(--fg-3);
+  font-size: 12px;
+}
+.fls-px { margin-left: 2px; font-size: 11px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+
+/* The global thumbnail size and the other segmented choices: the pressed one is accent-filled. */
+.fls .segmented {
+  margin: 0;
+  padding: 2px;
+}
+.fls .fls-seg button[aria-pressed="true"],
+.fls .fls-seg button[aria-pressed="true"]:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: none;
+  font-weight: 600;
+}
+.fls .fls-seg button[aria-pressed="true"]:hover { background: var(--accent-hover); }
+
+/* Status tiles: each one is a button that opens Check & fix on its filter. */
+.fls-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+.fls-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  height: auto;
+  min-height: 60px;
+  padding: 10px 12px;
+  border-radius: var(--radius-m);
+  background: var(--bg-control);
+  box-shadow: 0 0 0 1px var(--separator), var(--shadow-1);
+  color: var(--fg);
+  text-align: left;
+  white-space: normal;
+}
+.fls-tile:hover { background: var(--bg-control-hover); }
+.fls-tile-num {
+  color: var(--fg);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.fls-tile-label { color: var(--fg-2); font-size: 12px; font-weight: 500; }
+.fls-tile.is-warn .fls-tile-num { color: var(--warn); }
+.fls-tile-todo { border: 1px dashed var(--separator-strong); background: transparent; box-shadow: none; }
+.fls-tile-todo .fls-tile-label { color: var(--fg-3); }
+.fls-tile-sub { color: var(--accent-text); font-size: 12px; font-weight: 600; }
+
+/* ---------- tabs ---------- */
+
+.fls-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 20px;
+  border-bottom: 1px solid var(--separator);
+}
+.fls-tab {
+  position: relative;
+  height: 36px;
+  margin-bottom: -1px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-3);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.fls-tab:hover { background: transparent; color: var(--fg-2); }
+.fls-tab[aria-selected="true"] { color: var(--fg); }
+.fls-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.fls-tab-count {
+  display: inline-block;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.fls-panel { padding-top: 18px; }
+
+/* ---------- Organize: option cards ---------- */
+
+.fls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.fls-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 16px 16px;
+  border-radius: var(--radius-m);
+  background: var(--bg-control);
+  box-shadow: 0 0 0 1px var(--separator), var(--shadow-1);
+}
+.fls-card h3 {
+  margin: 0;
+  color: var(--fg);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.fls-card-hint {
+  margin: 0;
+  color: var(--fg-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.fls-card .segmented { align-self: flex-start; max-width: 100%; }
+.fls-sub { color: var(--fg-3); font-size: 12px; font-weight: 400; }
+
+.fls-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fls-chip {
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  box-shadow: none;
+  color: var(--fg-2);
+  font-weight: 500;
+}
+.fls-chip:hover { background: var(--bg-control-hover); color: var(--fg); }
+.fls-chip[aria-pressed="true"],
+.fls-chip[aria-pressed="true"]:hover {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+/* A switch with its label and a one-line explanation beside it. */
+.fls-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+.fls-switch-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fls-switch-text strong { color: var(--fg); font-size: 13px; font-weight: 500; }
+.fls-switch input.switch { margin-left: auto; }
+.fls-switch input.switch:disabled { opacity: 0.45; cursor: not-allowed; }
+.fls-switch:has(input:disabled) { opacity: 0.6; cursor: not-allowed; }
+
+/* ---------- Advanced: a collapsed danger card ---------- */
+
+.fls-danger {
+  margin-top: 12px;
+  border-radius: var(--radius-m);
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+.fls-danger > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 11px 14px;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.fls-danger > summary::-webkit-details-marker { display: none; }
+.fls-danger > summary::before {
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform 0.15s ease;
+}
+.fls-danger[open] > summary::before { transform: rotate(90deg); }
+.fls-danger-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+.fls-save-row { padding-left: 22px; }
+
+/* ---------- result: stat tiles, the root-bound table, the applied notes ---------- */
+
+.fls-result { margin-top: 18px; }
+.fls-result:empty { display: none; }
+.fls-result-head {
+  margin: 0 0 10px;
+  color: var(--fg-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.fls-result-sec { margin-bottom: 16px; }
+.fls-result-title {
+  margin: 0 0 8px;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+.fls-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 8px;
+}
+.fls-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-m);
+  background: var(--bg-control);
+  box-shadow: 0 0 0 1px var(--separator);
+}
+.fls-stat-label {
+  color: var(--fg-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.fls-stat-num {
+  color: var(--fg);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.fls-stat-sub { color: var(--fg-3); font-size: 12px; }
+.fls-note {
+  margin: 8px 0 0;
+  color: var(--fg-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.fls-note code { word-break: break-all; }
+.fls-root-box { margin-top: 6px; }
+.fls-table-wrap {
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  background: var(--bg-control);
+  box-shadow: 0 0 0 1px var(--separator);
+}
+.fls-root-table td,
+.fls-root-table th { vertical-align: middle; }
+.fls-root-table select { min-width: 180px; max-width: 100%; }
+
+/* ---------- the sticky action bar ---------- */
+
+.fls-actionbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin: 18px calc(var(--main-pad-x) * -1) 0;
+  padding: 12px var(--main-pad-x);
+  border-top: 1px solid var(--separator);
+  background: var(--bg-toolbar);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+.fls-sentence {
+  flex: 1 1 360px;
+  min-width: 0;
+  margin: 0;
+  color: var(--fg-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.fls-stale { display: block; margin-top: 2px; color: var(--warn); font-size: 12px; font-weight: 500; }
+.fls-actions { display: flex; flex: none; gap: 8px; }
+.fls .fls-apply:not(:disabled),
+.fls .fls-apply:not(:disabled):hover {
+  min-width: 96px;
+}
+.fls .fls-apply.is-danger:not(:disabled),
+.fls .fls-apply.is-danger:not(:disabled):hover {
+  background: var(--danger);
+  border-color: transparent;
+  color: var(--vext-smoke);
+}
+
+/* ---------- narrow windows: one column, the bar wraps ---------- */
+
+@media (max-width: 1100px) {
+  .fls-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 759px) {
+  .fls-grid { grid-template-columns: minmax(0, 1fr); }
+  .fls-thumbs { align-items: flex-start; }
+  .fls-actionbar { margin-left: calc(var(--main-pad-x) * -1); margin-right: calc(var(--main-pad-x) * -1); }
+  .fls-actions { width: 100%; }
+  .fls-actions button { flex: 1 1 0; }
+  .fls-sentence { flex-basis: 100%; }
+}

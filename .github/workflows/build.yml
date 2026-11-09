@@ -1,0 +1,81 @@
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ""
+    outputs:
+      commit:
+        value: ${{ jobs.build.outputs.commit }}
+      artifact:
+        value: ${{ jobs.build.outputs.artifact }}
+
+permissions:
+  contents: read
+
+# Do not cancel or coalesce main builds: every push must retain its own installer.
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.ref || github.sha }}
+
+  build:
+    needs: checks
+    runs-on: windows-latest
+    timeout-minutes: 90
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+      artifact: ${{ steps.source.outputs.artifact }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: source
+        name: Identify the source snapshot
+        shell: pwsh
+        run: |
+          $commit = git rev-parse HEAD
+          "commit=$commit" >> $env:GITHUB_OUTPUT
+          "artifact=VEXT-windows-$commit-${{ github.run_id }}-${{ github.run_attempt }}" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          architecture: x64
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - name: Install the Tauri CLI
+        working-directory: desktop
+        run: npm ci
+      - name: Build installer and portable folder
+        shell: pwsh
+        run: ./tools/build/build_release.ps1
+      - name: Verify checksums and package the portable download
+        shell: pwsh
+        run: ./tools/release/publish_release.ps1 -SkipGitHub
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.source.outputs.artifact }}
+          path: |
+            release/*-setup.exe
+            release/*-portable.zip
+            release/SHA256SUMS.txt
+            release/BUILD_PROVENANCE.json
+            release/RELEASE_NOTES.md
+            release/LICENSE
+            release/THIRD_PARTY_NOTICES.md
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0

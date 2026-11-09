@@ -1,0 +1,95 @@
+/* The toolbar's metrics (top right): MIDI activity and VEXT's memory (js/toolbar-metrics.js). */
+
+/* The toolbar paints above the content, so the MIDI popover does too (backdrop-filter makes it a stacking context). */
+.toolbar { position: relative; z-index: 5; }
+.toolbar-actions { margin-left: auto; }
+.tb-metrics { display: flex; align-items: center; gap: 6px; }
+
+.tb-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--separator);
+  border-radius: 999px;
+  background: var(--bg-control);
+  color: var(--fg-2);
+  font: 500 12px/1 var(--font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tb-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tb-mem .tb-value { min-width: 4.2em; text-align: right; }
+.tb-mem.is-off { color: var(--fg-3); }
+
+/* MIDI: dimmed with no input selected; lights up on every message. */
+.tb-midi-wrap { position: relative; }
+.tb-midi { cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
+.tb-midi:hover { background: var(--bg-control-hover); }
+.tb-midi:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tb-midi.is-off { color: var(--fg-3); opacity: .6; }
+.tb-midi.is-warn { color: var(--warn); }
+.tb-midi .tb-value {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width .25s, opacity .25s;
+}
+.tb-midi.has-text .tb-value { max-width: 16em; opacity: 1; }
+.tb-midi:not(.has-text) { gap: 0; }
+.tb-midi.is-hit .tb-icon { animation: tb-midi-hit .45s ease-out; }
+.tb-midi.is-hit { animation: tb-midi-ring .45s ease-out; }
+@keyframes tb-midi-hit {
+  0% { color: var(--accent); transform: scale(1.18); }
+  100% { color: inherit; transform: none; }
+}
+@keyframes tb-midi-ring {
+  0% { border-color: var(--accent); background: var(--accent-soft); }
+  100% { border-color: var(--separator); background: var(--bg-control); }
+}
+
+.tb-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  width: min(340px, calc(100vw - 24px));
+  padding: 8px 0;
+  border: 1px solid var(--separator-strong);
+  border-radius: var(--radius-m);
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-2);
+  color: var(--fg);
+  font-size: 12px;
+}
+.tb-pop-head { display: flex; justify-content: space-between; gap: 10px; padding: 2px 12px 6px; border-bottom: 1px solid var(--separator); }
+.tb-pop-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.tb-pop-head span { color: var(--fg-3); white-space: nowrap; }
+.tb-pop-fail { padding: 4px 12px; color: var(--warn); }
+.tb-pop-empty { padding: 6px 12px; color: var(--fg-3); }
+.tb-pop-last { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; padding: 6px 12px 2px; }
+.tb-ev-text { font-variant-numeric: tabular-nums; }
+.tb-ev-meta { flex-basis: 100%; color: var(--fg-3); font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
+.tb-flag { padding: 0 5px; border-radius: 4px; background: var(--warn-soft); color: var(--warn); font-size: 10.5px; }
+
+@media (max-width: 760px) {
+  .tb-metric { height: 24px; padding: 0 7px; gap: 4px; font-size: 11px; }
+  .tb-midi.has-text .tb-value { max-width: 0; opacity: 0; }
+  .tb-midi { gap: 0; }
+  .tb-mem .tb-value { min-width: 0; }
+  .tb-icon { width: 14px; height: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-midi.is-hit .tb-icon { animation: none; }
+}

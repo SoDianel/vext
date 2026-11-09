@@ -1,0 +1,13 @@
+{
+  "name": "vext",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "version": "0.9.0-beta.1",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

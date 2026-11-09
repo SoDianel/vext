@@ -1,0 +1,1586 @@
+{
+  "schema": 1,
+  "adapter": 4,
+  "scope": "experimental native editors; validated stereo effects and MIDI instruments",
+  "plugins": [
+    {
+      "relative": "Effects/Control Surface/Control Surface_x64.dll",
+      "sha256": "ad086c7788e1f49bd858e7d46637a72b815433b753e1ff49ff6adddb39b2ed6c",
+      "name": "Control Surface",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "automation_destinations",
+          "status": "out_of_scope",
+          "message": "FL Studio automation destinations are not provided by VEXT. Controls can be edited, but they do not control other plugins."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Distructor/Distructor_x64.dll",
+      "sha256": "00c1eabfff37453f3502407a7bdaab096af8e1a0e6d9072d613137183b11f264",
+      "name": "Distructor",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Edison/Edison_x64.dll",
+      "sha256": "928d44873da7c2fb1ab4fb535e14fa28ac92ef79a72ab59b76d1b5ebe0fe89bb",
+      "name": "Edison",
+      "instrument": false,
+      "editor": true,
+      "audio": true,
+      "limitations": [
+        {
+          "feature": "export_formats",
+          "status": "unverified",
+          "message": "Edison WAV loading and WAV export are validated. Other encoders and recording modes have not been validated in VEXT."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Effector/Effector_x64.dll",
+      "sha256": "2f538ec9bf0bbbdcad8cc0717955d22e0386320dc39a7f0cfcc5a61b512f72e5",
+      "name": "Effector",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Emphasis/Emphasis_x64.dll",
+      "sha256": "e64ca492e964e6c330f457158d91393fcb8c7e27d4b685c2bfa12aaf2a645e48",
+      "name": "Emphasis",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Emphasizer/Emphasizer_x64.dll",
+      "sha256": "9cbde60ad2faf3a53a2ff8f3639de9a08286db39c2efe207329cfe2e84ba2141",
+      "name": "Emphasizer",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/EQUO/EQUO_x64.dll",
+      "sha256": "bef93304b279b0c28b05c2e442a25c638ef14d1e779693aa35d4a0f3ddb8bc8d",
+      "name": "EQUO",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/FL Studio Mobile Rack FX/FL Studio Mobile Rack FX_x64.dll",
+      "sha256": "fc7f38aa417f56d7447856cbd70a5899db22a86c0e73ec3750df4d24d6938f9b",
+      "name": "Mobile Rack FX",
+      "instrument": false,
+      "editor": true,
+      "audio": true,
+      "limitations": [
+        {
+          "feature": "empty_project",
+          "status": "limited",
+          "message": "The isolated Mobile project starts empty. Add an internal synth or effect module in the editor; VEXT does not load factory samples or an existing FL project automatically."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Frequency Shifter/Frequency Shifter_x64.dll",
+      "sha256": "5aab5d966a89c4cb8c31953f78ec8245e179ea422672139dd3c11765564259ca",
+      "name": "Frequency Shifter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Frequency Splitter/Frequency Splitter_x64.dll",
+      "sha256": "e2505dc65283a5d5af248245488d4222a9136fcf93687e461ba50e6890e0e27c",
+      "name": "Frequency Splitter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity 7 Band EQ/Fruity 7 Band EQ_x64.dll",
+      "sha256": "83156a1128bc25a5c7bf38d1f6f45ff39ad98f16f2333be34014a13489bb8b3f",
+      "name": "Fruity 7 Band Equalizer",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Balance/Fruity Balance_x64.dll",
+      "sha256": "a81c8107c9511392d13f7191523058185a606fcab4313cb038c0b32376a4e9d1",
+      "name": "Fruity Balance",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Bass Boost/Fruity Bass Boost_x64.dll",
+      "sha256": "a0b62ff1e8416e7f85021e4d04f25a4f749af400d7a705ba1a0305a2675eaa14",
+      "name": "Fruity Bass Boost",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Big Clock/Fruity Big Clock_x64.dll",
+      "sha256": "8f0d9ca168d565c01cbd74b80654284ee0fc9d10d1171d6cef40aafaa6b15476",
+      "name": "Fruity Big Clock",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "clock": true,
+      "limitations": [
+        {
+          "feature": "clock_only",
+          "status": "by_design",
+          "message": "Big Clock displays Playground tempo and playback position. It does not process audio or take MIDI notes."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity Blood Overdrive/Fruity Blood Overdrive_x64.dll",
+      "sha256": "3178ccb0ec4a900ad60350f0280533557c1c1fd0669df8d2cb4e9dbca419697d",
+      "name": "Fruity Blood Overdrive",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Center/Fruity Center_x64.dll",
+      "sha256": "a022a131470e443feda9ccb36d0305b3f27fc65d75590bd89368f3b9fc983597",
+      "name": "Fruity Center",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Chorus/Fruity Chorus_x64.dll",
+      "sha256": "da668779ffb10759805242f474cb04ab739fc13318c21dfd6b45c11b218e505a",
+      "name": "Fruity Chorus",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Compressor/Fruity Compressor_x64.dll",
+      "sha256": "f40214923d930176d246f8d35ccdcd28adecc9812eece931a6a1e0bc670581d1",
+      "name": "Fruity Compressor",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Convolver/Fruity Convolver_x64.dll",
+      "sha256": "c5c835c3d4593862022a29446d2523babcc26e613156be748581be55762b4921",
+      "name": "Fruity Convolver",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity dB Meter/Fruity dB meter_x64.dll",
+      "sha256": "ea9479ce3f901c9262d924652a814d4507ac15e7b0b6c57f53c446dc3e92e0e4",
+      "name": "Fruity dB meter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Delay/Fruity Delay_x64.dll",
+      "sha256": "7b4b80665b4e52e21c4b23ae5c2b3e8bb2492764aa69f76472efe4c72464caa9",
+      "name": "Fruity Delay",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Delay 2/Fruity Delay 2_x64.dll",
+      "sha256": "d9a7674dca16cd95078b69aed7d68c56614598868a329d2bcfaabe0ec7a6f93d",
+      "name": "Fruity delay 2",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Delay 3/Fruity Delay 3_x64.dll",
+      "sha256": "b9d64b0918460d1a8c06ef48127e4d4d0c344b0459cfb33fd0b4e9e537cbfbd1",
+      "name": "Fruity Delay 3",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Delay Bank/Fruity Delay Bank_x64.dll",
+      "sha256": "af6b73a977754a2e6ccb3978afbbc8501b295a0bf885bc494da9ea6bfda63caf",
+      "name": "Fruity delay bank",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Fast Dist/Fruity Fast Dist_x64.dll",
+      "sha256": "cba6ef46e8f18c6a66d21656c0afb7a7e2e501ae1c969bfd566ea857847d682a",
+      "name": "Fruity Fast Dist",
+      "instrument": false,
+      "editor": false,
+      "audio": false,
+      "reason": "This version needs the FL host distortion service, including to draw its editor. It remains unavailable until that service is validated.",
+      "limitations": [
+        {
+          "feature": "distortion_service",
+          "status": "pending",
+          "message": "Fruity Fast Dist requires FL Studio's host distortion service even to draw its editor. That service is unimplemented; the plugin stays blocked. No substitute distortion is used."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity Fast LP/Fruity Fast LP_x64.dll",
+      "sha256": "e9bb7501868d1866ebb362ee5eec992624f5215d27ec6ef390f4fe80d5bc0bce",
+      "name": "Fruity Fast LP",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Filter/Fruity Filter_x64.dll",
+      "sha256": "492af2fbfa65a406eafcb0332160deb0a6c2a8715d39e01da51ca17f7f409d4a",
+      "name": "Fruity Filter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Flanger/Fruity Flanger_x64.dll",
+      "sha256": "2d2ca0c8b47530ae536e15e68c4eb8c7bd15f7d3acb0200b967ed4e29153e05d",
+      "name": "Fruity Flanger",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Flangus/Fruity Flangus_x64.dll",
+      "sha256": "cc83092fbfa95992d32a6b9cbe7e92c4839d6b0db9d8456f666a8b509e063d73",
+      "name": "Fruity Flangus",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Formula Controller/Fruity Formula Controller_x64.dll",
+      "sha256": "302779c86c18ee1f4278378098310c62a43255a932e46fffc78ee507979576a7",
+      "name": "Fruity formula controller",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "automation_destinations",
+          "status": "out_of_scope",
+          "message": "FL Studio automation destinations are not provided by VEXT. Controls can be edited, but they do not control other plugins."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity Free Filter/Fruity Free Filter_x64.dll",
+      "sha256": "99594019c084262c923b2aa77ddb6e52340aae767d9c4c62998fd85c7793cb69",
+      "name": "Fruity Free Filter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity HTML NoteBook/Fruity HTML NoteBook_x64.dll",
+      "sha256": "9a792c11f02e28bfddd216fbd6b2b640f4b78d390efac1008e392a2652efda03",
+      "name": "Fruity HTML NoteBook",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "web_documents",
+          "status": "out_of_scope",
+          "message": "HTML document display is disabled in VEXT. Browser helper processes and page network access remain disabled; the editor cannot display documents."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity Limiter/Fruity Limiter_x64.dll",
+      "sha256": "ed81447b31db7e5085c33c039f198483af71a353c481e85272d09d48e038b082",
+      "name": "Fruity Limiter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Love Philter/Fruity Love Philter_x64.dll",
+      "sha256": "b9f11d6359c04d531a031c30141f46573dd8ce301e62b6de612c1329ba2ff547",
+      "name": "Fruity Love Philter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity LSD/Fruity LSD_x64.dll",
+      "sha256": "b4e1a0b641710d811b12d7003c7b0a4f3d2cdf8b289170a18962032f980bd8ef",
+      "name": "Fruity LSD",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "directx_output",
+          "status": "out_of_scope",
+          "message": "Fruity LSD requires a DirectX/MIDI output device. VEXT does not connect that device; selecting a patch does not produce sound."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity Multiband Compressor/Fruity Multiband Compressor_x64.dll",
+      "sha256": "c8d352d6fbed135a2c9ea3151abd6c42741e1097ca6d26c4b7bb506677b04540",
+      "name": "Fruity Multiband Compressor",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Mute 2/Fruity Mute 2_x64.dll",
+      "sha256": "7effafca91b322124cb4c740e75461e170e6ded710a01085411cf500a97171f5",
+      "name": "Fruity Mute 2",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity NoteBook/Fruity NoteBook_x64.dll",
+      "sha256": "4df346c31e722bba4d01a53c2d56a8d7022d2a39a126dc90984a33ab13f823d4",
+      "name": "Fruity NoteBook",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "session_persistence",
+          "status": "unverified",
+          "message": "Text and pages can be edited in this session. VEXT does not restore notebook contents after closing the plugin."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity NoteBook 2/Fruity NoteBook 2_x64.dll",
+      "sha256": "41de27f321487ad87ca4ca862b2a7e859bdb42ee42769ba6755d3c36c8b84b29",
+      "name": "Fruity NoteBook 2",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "session_persistence",
+          "status": "unverified",
+          "message": "Text and pages can be edited in this session. VEXT does not restore notebook contents after closing the plugin."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity PanOMatic/Fruity PanOMatic_x64.dll",
+      "sha256": "029d8cda769e2775e7dce7bc772a490b3bbe858feb7fcac7dcf24d35296ce26e",
+      "name": "Fruity PanOMatic",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Parametric EQ/Fruity Parametric EQ_x64.dll",
+      "sha256": "eab6714211b38a425665edba862b00e7421b7504f2629fdaa4cf6716930c5ac1",
+      "name": "Fruity parametric EQ",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Parametric EQ 2/Fruity Parametric EQ 2_x64.dll",
+      "sha256": "871b83968e306bbd567153c774e4722a69db7fcd74c5c2969474ef287b5254f4",
+      "name": "Fruity parametric EQ 2",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Peak Controller/Fruity Peak Controller_x64.dll",
+      "sha256": "e73ec8dacb16d4db24444caa6d2d9db0a4b79246693288db4fa0972b63ec2d27",
+      "name": "Fruity peak controller",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "audio_reason": "The native controller clock needs additional host support.",
+      "limitations": [
+        {
+          "feature": "automation_destinations",
+          "status": "out_of_scope",
+          "message": "FL Studio automation destinations are not provided by VEXT. Controls can be edited, but they do not control other plugins."
+        },
+        {
+          "feature": "controller_processing",
+          "status": "pending",
+          "message": "Peak Controller's LFO processing depends on an unavailable host table. Audio and ticks remain disabled to avoid its observed fault."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity Phase Inverter/Fruity Phase Inverter_x64.dll",
+      "sha256": "fda803e60868b345068680216a15b8a4d074e02085791ae910d2d7ddf656fa62",
+      "name": "Fruity Phase Inverter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Phaser/Fruity Phaser_x64.dll",
+      "sha256": "0f053b585b20c4b17b532f92ae76735548dcd235b0dd9fc2b80ee4e901411351",
+      "name": "Fruity Phaser",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Reeverb/Fruity Reeverb_x64.dll",
+      "sha256": "2fc216ded46bc3bf2470758507b6cba7763b1ca9e85efe28fa713906da817cb8",
+      "name": "Fruity Reeverb",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Reeverb 2/Fruity Reeverb 2_x64.dll",
+      "sha256": "bc24b17d920652e9ff848fff3f1193b7fb771d148290986ec2b653fc0af897a1",
+      "name": "Fruity Reeverb 2",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Scratcher/Fruity Scratcher_x64.dll",
+      "sha256": "52c126ad3e8b684a24a9bff7b8bc77de73984732d14a3e882e01b00366b09b42",
+      "name": "Fruity Scratcher",
+      "instrument": false,
+      "editor": true,
+      "audio": true,
+      "limitations": [
+        {
+          "feature": "sample_loading",
+          "status": "limited",
+          "message": "Scratcher's folder button accepts WAV only. Its deck assumes 44.1 kHz samples, so playback speed changes with the engine rate."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity Send/Fruity Send_x64.dll",
+      "sha256": "03add028586b02cf1abf06e6907603fe64a6788032055ed0d451991198af4f09",
+      "name": "Fruity send",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "mixer_sends",
+          "status": "out_of_scope",
+          "message": "Fruity Send targets FL Studio mixer tracks. VEXT has no mixer-track destinations; its send controls do not route audio."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity Soft Clipper/Fruity Soft Clipper_x64.dll",
+      "sha256": "50aac72859d241664e2cd3cbe62c10ca87d63ed184c8582c43136dcc1ce772c6",
+      "name": "Fruity soft clipper",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Spectroman/Fruity Spectroman_x64.dll",
+      "sha256": "40898774bb90b5a592c698e286c224ca4315a1fec2b9518d9d8830ab576da925",
+      "name": "Fruity Spectroman",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Squeeze/Fruity Squeeze_x64.dll",
+      "sha256": "ed797a2fea90fd3f88bf726790f27197750560423dd2bc0b223efee26d4857dd",
+      "name": "Fruity Squeeze",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Stereo Enhancer/Fruity Stereo Enhancer_x64.dll",
+      "sha256": "5dca2e9ac278516b30e147d8e80e84e49813e9ef5a0da765dacd9fb7df5d7749",
+      "name": "Fruity Stereo Enhancer",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Stereo Shaper/Fruity Stereo Shaper_x64.dll",
+      "sha256": "25766939e0c83fc30bd6bea1f2bb8bb66202b403eb140bd33bcb449ea69b5204",
+      "name": "Fruity Stereo Shaper",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Vocoder/Fruity Vocoder_x64.dll",
+      "sha256": "bfc3bec327dda1f943cdd654220b9c0fa3dffa183080a4a8c56361fea63961b6",
+      "name": "Fruity Vocoder",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity WaveShaper/Fruity WaveShaper_x64.dll",
+      "sha256": "7c5bf09601ce77e4343805447b9ce27199b2efd65fae5e78f686c1bb8529da01",
+      "name": "Fruity WaveShaper",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Fruity Wrapper/Fruity Wrapper_x64.dll",
+      "sha256": "c600a15b7e58e526bd39841994b3f5f9ea47a4f93f65c530681438ec7cd82c74",
+      "name": "Fruity Wrapper",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "nested_hosting",
+          "status": "pending",
+          "message": "Fruity Wrapper cannot select or host another plugin in VEXT yet. Open the target VST2, VST3 or CLAP plugin directly in Playground instead."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity X-Y Controller/Fruity X-Y Controller_x64.dll",
+      "sha256": "c78e1ff282f4dc81dc13cc5baf0d896cc331a0826d641975e8569c421f23c19b",
+      "name": "Fruity X-Y controller",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "automation_destinations",
+          "status": "out_of_scope",
+          "message": "FL Studio automation destinations are not provided by VEXT. Controls can be edited, but they do not control other plugins."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Fruity X-Y-Z Controller/Fruity X-Y-Z Controller_x64.dll",
+      "sha256": "1027ffef2eabd6d5f12c70332a0bb7e02865831c099d4348a7c31eee75e6a6d4",
+      "name": "Fruity X-Y-Z Controller",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "automation_destinations",
+          "status": "out_of_scope",
+          "message": "FL Studio automation destinations are not provided by VEXT. Controls can be edited, but they do not control other plugins."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Gross Beat/Gross Beat_x64.dll",
+      "sha256": "9025d93836796c80d8bf84238338a54630f4ff5843d3f155335c653473298f1a",
+      "name": "Gross Beat",
+      "instrument": false,
+      "editor": true,
+      "audio": true,
+      "audio_reason": "The native tempo initialization needs additional host support."
+    },
+    {
+      "relative": "Effects/Hardcore/Hardcore_x64.dll",
+      "sha256": "adcd8ded370decab57cdd2ada210501e02e8f392a3ed07bbcb5b0ab89526957c",
+      "name": "Hardcore",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Hyper Chorus/Hyper Chorus_x64.dll",
+      "sha256": "a68175c894e3927063d2cb36f900efd134fdf732ff7776be23bc559824317be9",
+      "name": "Hyper Chorus",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Low Lifter/Low Lifter_x64.dll",
+      "sha256": "a492a7aa13f58a2d33075e5eb73bce57996ad4d3ee2fa5f450f60b84a423fa96",
+      "name": "Low Lifter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Luxeverb/LuxeVerb_x64.dll",
+      "sha256": "498d8f8dffbfda3fdb3b290e3c919d2764fdaa9729220bd5e18d7f53b0b819e6",
+      "name": "LuxeVerb",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Maximus/Maximus_x64.dll",
+      "sha256": "acc7affbe4d070ce8b71c13de79f267dd1b257f4207a61a733388a6aec1abdc1",
+      "name": "Maximus",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Multiband Delay/Multiband Delay_x64.dll",
+      "sha256": "e6954afb70c8f46783951561d35cf5140701ad720f7684784df71c0f87079113",
+      "name": "Multiband Delay",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Newtime/Newtime_x64.dll",
+      "sha256": "b9d4f90fdc50ae3aad8ce5f415bad8ed6d359b1e1eef9756d19643f84214b142",
+      "name": "Newtime",
+      "instrument": false,
+      "editor": true,
+      "audio": true,
+      "limitations": [
+        {
+          "feature": "editor_audition",
+          "status": "limited",
+          "message": "Newtime plays clips loaded in its own editor. Enable Monitor and use its Play/Stop controls. Monitor off silences output but preserves the editor transport state."
+        },
+        {
+          "feature": "editor_export_sync",
+          "status": "unverified",
+          "message": "Export, Audio-tab recording and synchronized page playback are not validated. Browser/file audio is not routed through this editor."
+        },
+        {
+          "feature": "sample_rate_change",
+          "status": "limited",
+          "message": "Choose the audio sample rate before loading a clip. If the rate changes or the device falls back to another rate, reload the clip in the editor."
+        }
+      ],
+      "audition": true
+    },
+    {
+      "relative": "Effects/Newtone/Newtone_x64.dll",
+      "sha256": "3a47d9942d1d594270c064d7d819c09115c02f73fa11a6ab5e3e6ba18ff4911c",
+      "name": "Newtone",
+      "instrument": false,
+      "editor": true,
+      "audio": true,
+      "limitations": [
+        {
+          "feature": "editor_audition",
+          "status": "limited",
+          "message": "Newtone plays clips loaded in its own editor. Enable Monitor and use its Play/Stop controls. Monitor off silences output but preserves the editor transport state."
+        },
+        {
+          "feature": "editor_export_sync",
+          "status": "unverified",
+          "message": "Export, Audio-tab recording and synchronized page playback are not validated. Browser/file audio is not routed through this editor."
+        },
+        {
+          "feature": "sample_rate_change",
+          "status": "limited",
+          "message": "Choose the audio sample rate before loading a clip. If the rate changes or the device falls back to another rate, reload the clip in the editor."
+        }
+      ],
+      "audition": true
+    },
+    {
+      "relative": "Effects/Patcher/Patcher_x64.dll",
+      "sha256": "cb4212c47a49474ac3762d651758db2a9819f50d7d78852b64d2bc696e43c64b",
+      "name": "Patcher",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "nested_hosting",
+          "status": "pending",
+          "message": "Patcher's graph editor opens, but nested plugin loading and graph playback are not supported yet. Add plugin folders stay empty until nested targets and routing are validated."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Pitch Shifter/Pitch Shifter_x64.dll",
+      "sha256": "e7dc07f6a7c2562523e095429ed78d9361c2dbd6cfbd16966639db6944f4d10c",
+      "name": "Pitch Shifter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Pitcher/Pitcher_x64.dll",
+      "sha256": "965db573b967d8b0b12a00a060177d517becdd0aefe76bd1b0251aab0c13a73d",
+      "name": "Pitcher",
+      "instrument": false,
+      "editor": true,
+      "audio": true,
+      "limitations": [
+        {
+          "feature": "midi_harmonization",
+          "status": "pending",
+          "message": "Pitcher's stereo audio processing is available. MIDI-controlled harmony and additional sidechains are not validated or enabled."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Razer Chroma/Razer Chroma_x64.dll",
+      "sha256": "61f3f9c10f767f58098cbeb2d93118bf4a4fa567522c55484d32bb248d815630",
+      "name": "Razer Chroma",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "hardware_output",
+          "status": "out_of_scope",
+          "message": "Razer lighting hardware and SDK output are not connected in VEXT. The editor does not control device lighting."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Soundgoodizer/Soundgoodizer_x64.dll",
+      "sha256": "fe3f0c135b1fda9ec3dd933d28300c9d98fd7ba7020c00ca8c6b271465692ac2",
+      "name": "Soundgoodizer",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Spreader/Spreader_x64.dll",
+      "sha256": "5b8845fa64cb39c92b9b1fb2dc43083649f7651aa23f781ee134b4c2c3bf10d7",
+      "name": "Spreader",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Transient Processor/Transient Processor_x64.dll",
+      "sha256": "3d0475da4c58967015ceb61ae993c591c4388790b67f77e8fab65cda84ced053",
+      "name": "Transient Processor",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Transmitter/Transmitter_x64.dll",
+      "sha256": "bfb8c12bd387b19ab27ccd9af03aa1335718685564863d86b73946abd4a3cb64",
+      "name": "Transmitter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Transporter/Transporter_x64.dll",
+      "sha256": "12d1116e3f9dae6f928b403212db0a356ac999512463b8d8b643aaa23a5aadda",
+      "name": "Transporter",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Tuner/Tuner_x64.dll",
+      "sha256": "75cacaecb179c2a305b7a5a15429da24dbf1330d56b4657e622986393545822f",
+      "name": "Tuner",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/VFX Color Mapper/VFX Color Mapper_x64.dll",
+      "sha256": "802a60c948f44a857ce3d85ec98adb3806e8bb5e29f25a70c6a36f7870adb505",
+      "name": "VFX Color Mapper",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "note_routing",
+          "status": "out_of_scope",
+          "message": "VFX Color Mapper needs a connected note graph for color-based note routing. VEXT does not provide that graph; editing does not send notes to another plugin."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/VFX Envelope/VFX Envelope_x64.dll",
+      "sha256": "0e4316af20ac6a149c044f0583ccc8bfb976c20ca26b0f5a42254d42860b34e1",
+      "name": "VFX Envelope",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "note_routing",
+          "status": "out_of_scope",
+          "message": "VFX Envelope needs a connected note graph for per-note controller envelopes. VEXT does not provide that graph; editing does not send notes to another plugin."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/VFX Key Mapper/VFX Key Mapper_x64.dll",
+      "sha256": "e6f7887c42c8380d5b1f9080d1588d9c281cdabc836bd8c8facbf2e772bec3d1",
+      "name": "VFX Key Mapper",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "note_routing",
+          "status": "out_of_scope",
+          "message": "VFX Key Mapper needs a connected note graph for note remapping. VEXT does not provide that graph; editing does not send notes to another plugin."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/VFX Keyboard Splitter/VFX Keyboard Splitter_x64.dll",
+      "sha256": "b2df699121ffd304ed8c88638f5d8c1a80def94f9c61711ae4c42c77a97980c4",
+      "name": "VFX Keyboard Splitter",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "note_routing",
+          "status": "out_of_scope",
+          "message": "VFX Keyboard Splitter needs a connected note graph for keyboard-zone routing. VEXT does not provide that graph; editing does not send notes to another plugin."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/VFX Level Scaler/VFX Level Scaler_x64.dll",
+      "sha256": "1fb6d09066e959b91e2ad35e3e9a3553227c1b23ce3639febc9a292daabcb861",
+      "name": "VFX Level Scaler",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "note_routing",
+          "status": "out_of_scope",
+          "message": "VFX Level Scaler needs a connected note graph for note-level scaling. VEXT does not provide that graph; editing does not send notes to another plugin."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/VFX Script/VFX Script_x64.dll",
+      "sha256": "2aba8f7b39b96dfee596b9041baa2f4987a0afaa8204c3e63bb7fd4d9ccf405c",
+      "name": "VFX Script",
+      "instrument": false,
+      "editor": false,
+      "audio": false,
+      "reason": "VFX Script needs embedded Python and script-context host services that are not supported in VEXT yet. Startup or Compile can stall, so this plugin is not loaded.",
+      "limitations": [
+        {
+          "feature": "script_runtime",
+          "status": "pending",
+          "message": "VFX Script startup or Compile can stall and needs unimplemented script-context services. The plugin stays blocked; scripts are not executed."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/VFX Sequencer/VFX Sequencer_x64.dll",
+      "sha256": "713503d9c889b3bd0038c0a4cb62e7488cc173e08886b5933cbc6652b0bf75d3",
+      "name": "VFX Sequencer",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "note_routing",
+          "status": "out_of_scope",
+          "message": "VFX Sequencer needs a connected note graph for sequenced note output. VEXT does not provide that graph; editing does not send notes to another plugin."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Vintage Chorus/Vintage Chorus_x64.dll",
+      "sha256": "df080f8d3de28da9e9396706490640966f3155702d36bb9245c1594c83eecf42",
+      "name": "Vintage Chorus",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Vintage Phaser/Vintage Phaser_x64.dll",
+      "sha256": "3f7c558a02071a89de8a40d26b3bc20015b1aa919fc4335b3c7d20004afe0d0f",
+      "name": "Vintage Phaser",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/Vocodex/Vocodex_x64.dll",
+      "sha256": "43d10692ea04457018138110a1a3035d99ed8b40a7f52e67a3109c22ca714bb0",
+      "name": "Vocodex",
+      "instrument": false,
+      "editor": true,
+      "audio": true,
+      "limitations": [
+        {
+          "feature": "extra_buses",
+          "status": "out_of_scope",
+          "message": "Vocodex supports stereo L-R encoding only. Enable that mode in its editor; separate carrier/modulator buses are not provided by VEXT."
+        }
+      ]
+    },
+    {
+      "relative": "Effects/Wave Candy/Wave Candy_x64.dll",
+      "sha256": "2dcc1a869c5c4d55536c0d38a8b3f17195aeb0c21ce402033b5dfcd359633bd8",
+      "name": "Wave Candy",
+      "instrument": false,
+      "editor": true,
+      "audio": true
+    },
+    {
+      "relative": "Effects/ZGameEditor Visualizer/ZGameEditor Visualizer_x64.dll",
+      "sha256": "5d1c02f8c1fc496543a18fded709f283920756d43db79f30358c59163834cc0e",
+      "name": "ZGameEditor Visualizer",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "visualizer_render",
+          "status": "pending",
+          "message": "ZGameEditor rendering, transport and resource cleanup are not validated. Only its editor is available; video rendering and audio processing remain disabled."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/3x Osc/3x Osc_x64.dll",
+      "sha256": "5d84d5ad2d8461edd43070d9a8a1147e8e8c308815ad8c91862533440d89dff2",
+      "name": "3x Osc",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Autogun/Autogun_x64.dll",
+      "sha256": "47b8a70b9b55e6a749ca26e9b9867ef34bc2b6f5866cf1e2240702b12d115e01",
+      "name": "Autogun",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/BassDrum/BassDrum_x64.dll",
+      "sha256": "1d6abcfc859c785240cfb8c8d10b0ddd1ee19353cbec7babbd6878c00e99d324",
+      "name": "Bassdrum",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/BeepMap/BeepMap_x64.dll",
+      "sha256": "249560b7bd3471631ff459a4a409c4424de39dc0b0df2eee09b9e59820e8779c",
+      "name": "BeepMap",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/BooBass/BooBass_x64.dll",
+      "sha256": "75c996004cfb5118739d1c044d010c2dbdfc3cd08f749b702eb2f972b77b1e29",
+      "name": "BooBass",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Dashboard/Dashboard_x64.dll",
+      "sha256": "2fc6d9816fdf24aa1494ae9641228107eb20054419e166a8ea0769102163c21f",
+      "name": "Dashboard",
+      "instrument": true,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "automation_destinations",
+          "status": "out_of_scope",
+          "message": "FL Studio automation destinations are not provided by VEXT. Controls can be edited, but they do not control other plugins."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/DirectWave/DirectWave_x64.dll",
+      "sha256": "3432775dd4e06b333fb04f210d834fb02d91932d702a3699b4c180501a746570",
+      "name": "DirectWave Player",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Drumaxx/Drumaxx_x64.dll",
+      "sha256": "a4d71bbe4eeda64de1e0965cff48134903c751a1f79a75392c347dffcd5358c0",
+      "name": "Drumaxx",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Drumpad/Drumpad_x64.dll",
+      "sha256": "28a0a642ad6aafe3d59fb71588b296934ac42ffa0626bd29228bc7ed921da361",
+      "name": "Drumpad",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/FL Keys/FL Keys_x64.dll",
+      "sha256": "56ca12091eb0fc767507095d0bf1aed1d8bf27c42d5e7ab6569cc699ed67822e",
+      "name": "FL Keys",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/FL Slayer/FL Slayer_x64.dll",
+      "sha256": "2acdf8e90dfe740dd50759ddf156c838b0026e5cb0a33eb33dfa0b0731d79963",
+      "name": "FL Slayer",
+      "instrument": false,
+      "editor": false,
+      "reason": "FL Slayer needs a 32-bit FL native engine bridge. VEXT's 32-bit VST2 host cannot run that native engine; this plugin stays blocked.",
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "native_x86",
+          "status": "out_of_scope",
+          "message": "FL Slayer needs a 32-bit FL native engine bridge. VEXT's 32-bit VST2 host cannot run that native engine; this plugin stays blocked."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/FL Studio Mobile/FL Studio Mobile_x64.dll",
+      "sha256": "c63ba7aec75d509f2d1eda2304309d2faec942c0988cfc0fb9428df020da4021",
+      "name": "FL Studio Mobile",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "empty_project",
+          "status": "limited",
+          "message": "The isolated Mobile project starts empty. Add an internal synth or effect module in the editor; VEXT does not load factory samples or an existing FL project automatically."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/FL Studio Mobile Rack/FL Studio Mobile Rack_x64.dll",
+      "sha256": "c8d9087f4dec1115dd7124bebde361101685d9f248943b615cc4399dacccd134",
+      "name": "Mobile Rack",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "empty_project",
+          "status": "limited",
+          "message": "The isolated Mobile project starts empty. Add an internal synth or effect module in the editor; VEXT does not load factory samples or an existing FL project automatically."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/FLEX/FLEX_x64.dll",
+      "sha256": "76acd4ab902a041c8cdd29826736b1d00f0e02e0a822b36fb04667cecf433650",
+      "name": "FLEX",
+      "instrument": false,
+      "editor": false,
+      "reason": "FLEX native startup is not supported by this experimental adapter yet.",
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "factory_startup",
+          "status": "pending",
+          "message": "FLEX startup is not validated in VEXT's isolated host. The plugin stays blocked; this is an unresolved integration, not proof that FLEX cannot be supported."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/FPC/FPC_x64.dll",
+      "sha256": "5990885c6dbf02a6be2e75101a899b8b496846705b8dab5c2dce01bfb9586f04",
+      "name": "FPC",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "extra_outputs",
+          "status": "out_of_scope",
+          "message": "FPC uses its main stereo output only. Multi-output pad routing is not provided by VEXT; route pads to the main output in FPC."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruit Kick/Fruit Kick_x64.dll",
+      "sha256": "a93d86452f8cb35b94a9e101bf241a68316f7d0cb2da6366a79781c0b874122b",
+      "name": "Fruit kick",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Fruity Dance/Fruity dance_x64.dll",
+      "sha256": "884dc3f7b46b7690053407e55360434372cbdf058f9ea5b999ec9d5f8ebe88d0",
+      "name": "Fruity Dance",
+      "instrument": true,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "overlay_clock",
+          "status": "pending",
+          "message": "Fruity Dance's character uses a separate overlay window. Animation stays disabled until that window can be hosted and captured correctly."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruity DrumSynth Live/Fruity DrumSynth Live_x64.dll",
+      "sha256": "bd4bf6916f94a2539cf3a8d735c11a1a6c260a622d65b188fb7bee740d259cab",
+      "name": "Fruity DrumSynth Live",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Fruity DX10/Fruity DX10_x64.dll",
+      "sha256": "3a9d58d7e19abcba66393caa6aeecfe2fab3dbc715c9e9256f4a08da24fde8d9",
+      "name": "Fruity DX10",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Fruity Envelope Controller/Fruity Envelope Controller_x64.dll",
+      "sha256": "e60f74623dc6ff60bb0ec3c866d66f0192635f4ea88a5e72ee66965f6edec763",
+      "name": "Fruity Envelope Controller",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "automation_destinations",
+          "status": "out_of_scope",
+          "message": "FL Studio automation destinations are not provided by VEXT. Controls can be edited, but they do not control other plugins."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruity Granulizer/Fruity Granulizer_x64.dll",
+      "sha256": "8a7d8698bc6d2df1418dc0aaab30b670bfc414dd94e6476217b5fc107b3dfb86",
+      "name": "Fruity granulizer",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "sample_loading",
+          "status": "limited",
+          "message": "Granulizer's sample area accepts WAV only. Load a sample before playing notes; VEXT does not select one automatically."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruity Keyboard Controller/Fruity Keyboard Controller_x64.dll",
+      "sha256": "72ef38b56bfcd4215a8fd6319d9ae26f087f31751d688534bc96ca5829e30b3c",
+      "name": "Fruity Keyboard Controller",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "automation_destinations",
+          "status": "out_of_scope",
+          "message": "FL Studio automation destinations are not provided by VEXT. Controls can be edited, but they do not control other plugins."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruity Slicer/Fruity Slicer_x64.dll",
+      "sha256": "7616d1f88febef330916b5f45e51ba758a7f2666b80718fab321fda546312ed6",
+      "name": "Fruity Slicer",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "sample_loading",
+          "status": "limited",
+          "message": "This slicer accepts WAV only and uses its own slicing. Embedded file regions are ignored; notes from MIDI 60 play the slices."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruity Slicer 2/Fruity Slicer 2_x64.dll",
+      "sha256": "c0c7375f7d2064b35ef4cce41f8848c2f2b991f29507da1855a946774d22e15d",
+      "name": "Fruity Slicer 2",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "sample_loading",
+          "status": "limited",
+          "message": "This slicer accepts WAV only and uses its own slicing. Embedded file regions are ignored; notes from MIDI 60 play the slices."
+        },
+        {
+          "feature": "external_sample_editor",
+          "status": "out_of_scope",
+          "message": "Edit > Open does not launch an external sample editor in VEXT. Use the native toolbar picker to load a WAV."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruity Video Player/Fruity Video Player_x64.dll",
+      "sha256": "59b30311595577d327b7299f37873ebd042fb23512cbc6d620d9597da6020f2c",
+      "name": "Fruity Video Player",
+      "instrument": true,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "video_clock",
+          "status": "pending",
+          "message": "Fruity Video Player can select a video, but advancing frames and synchronized playback are not validated. Video transport, audio and MIDI remain disabled."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruity Voltage Controller/Fruity Voltage Controller_x64.dll",
+      "sha256": "e03ae1eb18d119e3b7fe4aa8036b5c8d2f625bd69b2c0edde4bfb8132a36c01e",
+      "name": "Fruity Voltage Controller",
+      "instrument": true,
+      "editor": false,
+      "audio": false,
+      "midi": false,
+      "reason": "Voltage/CV hardware control is blocked in VEXT. This plugin is not loaded.",
+      "limitations": [
+        {
+          "feature": "cv_output",
+          "status": "out_of_scope",
+          "message": "Voltage/CV hardware output is outside VEXT's plugin-preview scope. This plugin is blocked before loading."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Fruity Wrapper/Fruity Wrapper_x64.dll",
+      "sha256": "fa5a2f6fbccfc42d3382627887228e9cc8f702a676de284cf6b3eeeb0686d2e7",
+      "name": "Fruity Wrapper",
+      "instrument": true,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "nested_hosting",
+          "status": "pending",
+          "message": "Fruity Wrapper cannot select or host another plugin in VEXT yet. Open the target VST2, VST3 or CLAP plugin directly in Playground instead."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/GMS/GMS_x64.dll",
+      "sha256": "20c88eba48ab3a80b1524b28f9303065a0cb9a198f70d88ac287deccf5fcec9c",
+      "name": "GMS",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Harmless/Harmless_x64.dll",
+      "sha256": "4100bf85ad29dc665051a73ef62017272a25aefbda1cf2f1ace39e6be376440b",
+      "name": "Harmless",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Harmor/Harmor_x64.dll",
+      "sha256": "23673ad84b11321c8133084e61ae53c3aa72e437586295083c3a06dd499d5aba",
+      "name": "Harmor",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Kepler/Kepler_x64.dll",
+      "sha256": "9db78f5a67af7dd1c932c3e2e8d13114905e9482e6367e797245098849bc4d5b",
+      "name": "Kepler",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Kepler Exo/Kepler Exo_x64.dll",
+      "sha256": "c0434a6fd4da500fa4bb55042484d5f217c3ffe3b29374aea1984c2052aff656",
+      "name": "Kepler Exo",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/MIDI Out/MIDI Out_x64.dll",
+      "sha256": "a87bf4c1d4ac9e1f0d22632232fd57ca5a77b2085f12d1966137c06bac8cef45",
+      "name": "MIDI Out",
+      "instrument": false,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "external_midi",
+          "status": "out_of_scope",
+          "message": "MIDI Out does not open an external MIDI port in VEXT. Its controls do not send data to hardware or other applications."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Minisynth/MiniSynth_x64.dll",
+      "sha256": "e00ca0194eccd4987f00a1976f3da3403c7ba78cfb5bf771f2fbf1ed0848ec85",
+      "name": "MiniSynth",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Morphine/Morphine_x64.dll",
+      "sha256": "decf72d6a27ec6a6576f4708a20eba33cd949fa73866a9ad0cc7cbfcf4d3d48e",
+      "name": "Morphine",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "preset_library",
+          "status": "pending",
+          "message": "Morphine starts with a silent program. Load a preset in its editor; factory-library browsing through the host is not available."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Ogun/Ogun_x64.dll",
+      "sha256": "c2c717df2a44217e5f3a706fc566fc19f5ce9f1e111f3bd4a4bb7c1516a1e4c6",
+      "name": "Ogun",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Patcher/Patcher_x64.dll",
+      "sha256": "d8acd9298d738e6bd06fa83658113a68eafd312a1a1fd3a87f0f805759291027",
+      "name": "Patcher",
+      "instrument": true,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "nested_hosting",
+          "status": "pending",
+          "message": "Patcher's graph editor opens, but nested plugin loading and graph playback are not supported yet. Add plugin folders stay empty until nested targets and routing are validated."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Plucked!/Plucked!_x64.dll",
+      "sha256": "290e4edb57352b9aea3cd865a813d3d16a9d3375abda59464fb10eb4e801be3d",
+      "name": "PLUCKED!",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/PoiZone/PoiZone_x64.dll",
+      "sha256": "152100cc34592653816da384f568fd5e2c5449df48a9eda10d51263f32c3e653",
+      "name": "Poizone",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/ReWired/ReWired_x64.dll",
+      "sha256": "1ffe4d547cec80e43ecd694facbb6171f623d3cd88dd10e53921678cd12a3c3d",
+      "name": "ReWired",
+      "instrument": true,
+      "editor": true,
+      "audio": false,
+      "limitations": [
+        {
+          "feature": "rewire",
+          "status": "out_of_scope",
+          "message": "ReWired requires an external ReWire application and transport routing. VEXT does not launch or connect ReWire applications."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Sakura/Sakura_x64.dll",
+      "sha256": "6087f71cc2e1856984ee9df67ce4c4a242a1002e32836e54f04b515ad2179697",
+      "name": "Sakura",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Sawer/Sawer_x64.dll",
+      "sha256": "6f70e68f125e56bc037c557cd32eaa6b8b63a84f015e05ed20027d2ed5f5ac25",
+      "name": "Sawer",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/SimSynth/SimSynth_x64.dll",
+      "sha256": "3a13b8278090e0927e1af5405e4154e555fcbbc2ed3d358bf6e405e92cea3da4",
+      "name": "SimSynth Live",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Slicex/Slicex_x64.dll",
+      "sha256": "401b5ece958913d8fd00bd6cd8defd66c4b624a0702ade13992fc1ff1569857b",
+      "name": "Slicex",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "piano_roll_export",
+          "status": "out_of_scope",
+          "message": "Slicex plays loaded slices, but VEXT has no piano roll. Dump score and automatic note export do not create or replay notes."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Soundfont Player/Soundfont Player_x64.dll",
+      "sha256": "862e8310eae1a3ae95f10fda9c751d29b8396f9d2e8a536f5df3c1709529652d",
+      "name": "SoundFont Player",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Sytrus/Sytrus_x64.dll",
+      "sha256": "d52a97c55e36c2457305ce4f2d6eed08aabd12dbec02c9f5f55ce8788e944f15",
+      "name": "Sytrus",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Toxic Biohazard/Toxic Biohazard_x64.dll",
+      "sha256": "5c326637be38fcea7148e170b83e6bec8600c87f00fa774eb610ed68f136cb46",
+      "name": "Toxic Biohazard",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Transistor Bass/Transistor Bass_x64.dll",
+      "sha256": "d619a84d68497c2cd73df88d1ef26b94d9fdd00d7bd32c8e6bd37eb6bd2ae9fc",
+      "name": "Transistor Bass",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true
+    },
+    {
+      "relative": "Generators/Wasp/Wasp_x64.dll",
+      "sha256": "d440c2d76298a4fe5e8bcf107f5eb6f1be5c7b3a5591e03b2a26c8a14aa01ffd",
+      "name": "WASP",
+      "instrument": true,
+      "editor": false,
+      "audio": false,
+      "reason": "Wasp's installed x64 file is a compatibility notice, not a synthesizer. VEXT does not support 32-bit FL native plugins.",
+      "limitations": [
+        {
+          "feature": "native_x86",
+          "status": "out_of_scope",
+          "message": "The installed x64 Wasp file is a compatibility notice, not a synth engine. 32-bit FL native engines are outside VEXT beta support."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Wasp XT/Wasp XT_x64.dll",
+      "sha256": "d440c2d76298a4fe5e8bcf107f5eb6f1be5c7b3a5591e03b2a26c8a14aa01ffd",
+      "name": "WASP XT",
+      "instrument": true,
+      "editor": false,
+      "audio": false,
+      "reason": "Wasp XT's installed x64 file is a compatibility notice, not a synthesizer. VEXT does not support 32-bit FL native plugins.",
+      "limitations": [
+        {
+          "feature": "native_x86",
+          "status": "out_of_scope",
+          "message": "The installed x64 Wasp file is a compatibility notice, not a synth engine. 32-bit FL native engines are outside VEXT beta support."
+        }
+      ]
+    },
+    {
+      "relative": "Generators/Wave Traveller/Wave Traveller_x64.dll",
+      "sha256": "c96c3df74fc30b2f9a479d070cbaa506ff096d410d60cbeafe85f962fb03db63",
+      "name": "Wave Traveller",
+      "instrument": true,
+      "editor": true,
+      "audio": true,
+      "midi": true,
+      "limitations": [
+        {
+          "feature": "sample_loading",
+          "status": "limited",
+          "message": "Wave Traveller accepts WAV only. Its default curve traverses the sample in one bar, so playback pitch follows Playground tempo."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,579 @@
+/* The Analyzer section (js/analyzer.js, js/analyzer-stereo.js): a bar, a settings row, the
+   source line, the views and the level meters. The canvases read their colours from the theme
+   through small probe elements (.an-probes) and the canvases' own colour / outline-color /
+   column-rule-color; the spectrogram's colour ramp is --an-c0 .. --an-c4 on .an, light and dark.
+   The section fills the window like the Playground: the views take the room that is left and
+   nothing scrolls sideways. */
+
+:root[data-section="analyzer"] main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: 12px;
+  padding-bottom: 14px;
+}
+:root[data-section="analyzer"] #panel-analyzer.active {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  max-width: none;
+}
+#analyzer-root {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.an {
+  /* Spectrogram colour ramp, quiet floor to hot. Light: the floor is the content background and the hot end is dark. */
+  --an-c0: var(--bg-content);
+  --an-c1: #dfe6f5;
+  --an-c2: #8a7bd8;
+  --an-c3: #e0702b;
+  --an-c4: #3a1500;
+  --an-meter-w: 110px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: var(--font);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .an {
+    --an-c1: #1b2a4a;
+    --an-c2: #5b3fa3;
+    --an-c3: #e06a2b;
+    --an-c4: #fff3c4;
+  }
+}
+:root[data-theme="dark"] .an {
+  --an-c1: #1b2a4a;
+  --an-c2: #5b3fa3;
+  --an-c3: #e06a2b;
+  --an-c4: #fff3c4;
+}
+@media (max-width: 760px) { .an { --an-meter-w: 72px; } }
+
+/* ---------- the bar and the settings row ---------- */
+
+.an-bar,
+.an-settings {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  min-width: 0;
+}
+.an-settings { gap: 6px 12px; }
+.an-settings:empty { display: none; }
+.an-field {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.an-label {
+  color: var(--fg-3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.an-spacer { flex: 1 1 0; min-width: 0; }
+.an .segmented { margin: 0; }
+.an .segmented button {
+  height: 22px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.an-bar > .an-seg-view .segmented button { height: 26px; padding: 0 12px; font-size: 12.5px; }
+.an .segmented button:disabled { opacity: 0.45; }
+.an .segmented button[aria-pressed="true"] {
+  background: var(--bg-control);
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), 0 0 0 0.5px var(--separator);
+}
+/* Dark: the pressed segment is the accent. The grey tint was almost the strip's own colour, so the
+   choice didn't show. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .an .segmented button[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--accent-fg);
+    box-shadow: none;
+    font-weight: 600;
+  }
+  :root:not([data-theme="light"]) .an .segmented button[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent-hover); }
+  :root:not([data-theme="light"]) .an .segmented button[aria-pressed="false"] { color: var(--fg-2); }
+  :root:not([data-theme="light"]) .an .segmented button[aria-pressed="false"]:hover { color: var(--fg); }
+}
+:root[data-theme="dark"] .an .segmented button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: none;
+  font-weight: 600;
+}
+:root[data-theme="dark"] .an .segmented button[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent-hover); }
+:root[data-theme="dark"] .an .segmented button[aria-pressed="false"] { color: var(--fg-2); }
+:root[data-theme="dark"] .an .segmented button[aria-pressed="false"]:hover { color: var(--fg); }
+
+.an button.an-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.an button.an-btn[aria-pressed="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent-text);
+}
+/* Dark: a pressed button (Freeze, Settings, the generator's Start) is filled with the accent. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .an button.an-btn[aria-pressed="true"] {
+    background: var(--accent);
+    box-shadow: none;
+    color: var(--accent-fg);
+  }
+  :root:not([data-theme="light"]) .an button.an-btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent-hover); }
+}
+:root[data-theme="dark"] .an button.an-btn[aria-pressed="true"] {
+  background: var(--accent);
+  box-shadow: none;
+  color: var(--accent-fg);
+}
+:root[data-theme="dark"] .an button.an-btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent-hover); }
+.an select.an-sel {
+  width: auto;
+  height: 26px;
+  padding: 0 22px 0 7px;
+  font-size: 12px;
+}
+.an input.an-num {
+  box-sizing: content-box;
+  width: 7ch;
+  height: 24px;
+  padding: 0 4px 0 6px;
+  border: 1px solid var(--separator-strong);
+  border-radius: var(--radius-s);
+  background: var(--bg-field);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.an input.an-num::-webkit-inner-spin-button,
+.an input.an-num::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+.an input.an-num:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.an-sep, .an-unit { color: var(--fg-3); font-size: 11px; }
+
+/* Capture: a button with a small menu. */
+.an-cap { position: relative; flex: none; }
+.an-capmenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  padding: 5px;
+  border-radius: var(--radius-m);
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-2), 0 0 0 0.5px var(--separator-strong);
+}
+.an-capmenu[hidden] { display: none; }
+.an-capmenu button {
+  justify-content: flex-start;
+  height: auto;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  color: var(--fg);
+  font-size: 13px;
+  text-align: left;
+}
+.an-capmenu button:hover:not(:disabled),
+.an-capmenu button:focus-visible { background: var(--bg-hover); }
+.an-capmenu button:disabled { color: var(--fg-3); }
+
+/* ---------- the source line ---------- */
+
+.an-source {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 2px;
+  color: var(--fg-2);
+  font-size: 12.5px;
+}
+.an-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-3);
+  opacity: 0.55;
+}
+.an-dot.is-live { background: var(--ok); opacity: 1; }
+.an-source-text { min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.an-source-note { min-width: 0; color: var(--fg-3); font-size: 11.5px; overflow-wrap: anywhere; }
+
+/* ---------- the timeline (js/analyzer-timeline.js) ---------- */
+
+/* The Playground tab's sound as a play line: a top row (title, times, Loop) and, under it, the Play
+   button and the strip, which runs to the section's right edge. The canvas draws the waveform in its
+   own colour (centre line: outline-color); the selection and the playhead are elements. */
+.an-tl {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.an-tl-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+.an-tl-title {
+  flex: 0 1 auto;
+  max-width: 60%;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-2);
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.an-tl-title:empty { display: none; }
+.an-tl-time {
+  flex: none;
+  color: var(--fg-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.an-tl-sep { flex: none; color: var(--fg-3); font-size: 12px; }
+.an-tl-dur { color: var(--fg-3); }
+.an-tl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.an-tl-lead {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+.an-tl-lead:empty { display: none; }
+/* The main action, beside the waveform: as tall as the strip, with an accent fill while it can play. */
+.an .an-tl-lead button.an-transport {
+  height: 44px;
+  min-width: 84px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.an .an-tl-lead button.an-transport:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.an .an-tl-lead button.an-transport:not(:disabled):hover { background: var(--accent-hover); }
+.an-tl-track {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 160px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+  background: var(--bg-content);
+  box-shadow: inset 0 0 0 1px var(--separator);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.an-tl-track.is-empty { cursor: default; }
+.an-tl-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--fg-3);
+  outline-color: var(--separator);
+}
+.an-tl-sel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-soft);
+  box-shadow: inset 1px 0 0 var(--accent), inset -1px 0 0 var(--accent);
+  pointer-events: none;
+}
+.an-tl-head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+/* Waiting for the Plugin buffer (a seek, a new loop): nothing is heard yet. */
+.an-tl-head.is-waiting { opacity: 0.45; }
+.an-tl-msg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  color: var(--fg-3);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+.an-tl-msg[hidden] { display: none; }
+
+/* ---------- views and meters ---------- */
+
+.an-main {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 8px;
+  min-width: 0;
+  min-height: 240px;
+}
+/* The wrapper is the container the split layout asks about (a container can't style itself). */
+.an-vwrap {
+  container: anviews / inline-size;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+.an-views {
+  display: grid;
+  flex: 1 1 auto;
+  grid-auto-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+.an-views.is-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container anviews (max-width: 700px) {
+  .an-views.is-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+.an-pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  background: var(--bg-content);
+  box-shadow: inset 0 0 0 1px var(--separator);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.an-pane[data-view="spectrum"],
+.an-pane[data-view="spectrogram"] { cursor: crosshair; }
+.an-pane[hidden], .an-hx[hidden], .an-hy[hidden], .an-hover[hidden], .an-msg[hidden],
+.an-title[hidden], .an-badge[hidden] { display: none; }
+
+/* The canvas reads: color = text (and what a view takes for itself), outline-color = grid lines,
+   column-rule-color = axis labels. */
+.an-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: var(--fg-2);
+  outline-color: var(--separator-strong);
+  column-rule-color: var(--fg-3);
+}
+
+/* The signal's name and the Frozen badge, top right. */
+.an-side {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  max-width: calc(100% - 16px);
+  pointer-events: none;
+}
+.an-title,
+.an-badge {
+  padding: 1px 7px;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--bg-content) 72%, transparent);
+  color: var(--fg-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.an-title[data-sig="after"] { color: var(--accent-text); }
+.an-badge { background: var(--accent-soft); color: var(--accent-text); font-size: 11px; }
+
+/* Hover: a crosshair (Spectrum, Spectrogram) and a readout that follows the pointer. */
+.an-hx, .an-hy {
+  position: absolute;
+  background: var(--fg);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.an-hx { top: 0; bottom: 0; width: 1px; }
+.an-hy { left: 0; right: 0; height: 1px; }
+.an-hover {
+  position: absolute;
+  z-index: 3;
+  padding: 5px 9px;
+  border-radius: var(--radius-s);
+  background: var(--bg-popover);
+  box-shadow: 0 0 0 1px var(--separator-strong), var(--shadow-1);
+  color: var(--fg);
+  font-size: 11.5px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  pointer-events: none;
+}
+.an-msg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  color: var(--fg-3);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ---------- level meters ---------- */
+
+.an-meters {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  width: var(--an-meter-w);
+  min-height: 0;
+}
+.an-mgroup {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  padding: 6px 0 4px;
+  border-radius: var(--radius-m);
+  background: var(--bg-content);
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+.an-mgroup[data-sig="before"] { --an-sig: var(--fg-2); }
+.an-mgroup[data-sig="after"] { --an-sig: var(--accent-text); }
+.an-mtitle {
+  padding: 0 8px 4px;
+  color: var(--an-sig);
+  font-size: 11px;
+  font-weight: 600;
+}
+.an-mrow {
+  display: grid;
+  flex: none;
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 4px;
+  padding: 0 4px;
+}
+.an-mcanvas {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 60px;
+  color: var(--fg-3);
+}
+.an button.an-clip {
+  height: 16px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--separator);
+  color: var(--fg-3);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+.an button.an-clip.is-on {
+  background: var(--danger);
+  box-shadow: none;
+  color: var(--bg-content);
+}
+.an-mmax { padding-top: 3px; }
+.an-mval {
+  grid-column: 2 / 4;
+  min-height: 15px;
+  color: var(--fg-2);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Probes: only here so the script can read the theme's colours (they have no size). */
+.an-probes { position: absolute; width: 0; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; }
+.an-probes i { display: block; }
+.an-probe-before { color: var(--fg-2); }
+.an-probe-after { color: var(--accent-text); }
+.an-probe-bg { color: var(--bg-content); }
+.an-probe-danger { color: var(--danger); }
+.an-probe-ok { color: var(--ok); }
+.an-probe-warn { color: var(--warn); }
+.an-probe-grid {
+  outline-color: var(--separator-strong);
+  column-rule-color: var(--fg-3);
+  font-family: var(--font);
+}
+
+/* A narrow window: the settings and the bar wrap (they already do); the pane keeps a usable height. */
+@media (max-width: 760px) {
+  .an-main { min-height: 280px; }
+  .an-mtitle { padding: 0 4px 3px; }
+}

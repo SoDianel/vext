@@ -1,0 +1,160 @@
+/* The Analyzer's settings window (js/analyzer.js, js/analyzer-knob.js): a floating panel over the
+   section, opened by the bar's Settings button. It holds the view's fields as a two-column grid
+   (label left, control right) and the Freq and Range knobs in one row. Only palette tokens are used,
+   so light and dark follow the theme without their own blocks. */
+
+.an { position: relative; }
+
+.an-setwin {
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  border-radius: var(--radius-m);
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-2), 0 0 0 0.5px var(--separator-strong);
+  color: var(--fg);
+  font-size: 12px;
+}
+.an-setwin[hidden] { display: none; }
+
+/* The header is the drag handle. */
+.an-setwin-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 0.5px solid var(--separator);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.an-setwin-title { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.an-setwin-view {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.an-setwin-x {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg-3);
+  font-size: 16px;
+  line-height: 20px;
+  cursor: default;
+}
+.an-setwin-x:hover { background: var(--bg-control); color: var(--fg); }
+
+/* The fields: a grid of label and control rows, and the knob row across both columns. */
+.an-setwin .an-settings {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 0;
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+}
+.an-setwin .an-field { display: contents; }
+.an-setwin .an-field > *:not(.an-label) { justify-self: start; }
+.an-setwin .an-label { font-size: 11.5px; }
+.an-setwin .an-sel { max-width: 100%; }
+
+.an-knobrow {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding-top: 4px;
+  border-top: 0.5px solid var(--separator);
+}
+.an-knobgrp { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.an-knobs { display: flex; gap: 6px; }
+
+/* ---------- knobs ---------- */
+
+.ak {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 58px;
+  padding: 2px 0;
+  border-radius: var(--radius-s);
+  color: var(--fg);
+  cursor: ns-resize;
+  user-select: none;
+  touch-action: none;
+  outline: none;
+}
+.ak:focus-visible { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3px var(--accent); }
+.ak:hover .ak-body { fill: var(--bg-hover); }
+.ak.is-drag .ak-body { fill: var(--accent-soft); }
+.ak.is-disabled { opacity: 0.45; cursor: default; }
+.ak.is-disabled .ak-body { fill: var(--bg-control); }
+
+.ak-svg {
+  display: block;
+  width: 34px;
+  height: 34px;
+  overflow: visible;
+}
+.ak-body { fill: var(--bg-control); stroke: var(--separator-strong); stroke-width: 0.8; }
+.ak-track { fill: none; stroke: var(--separator); stroke-width: 1.8; stroke-linecap: round; }
+.ak-arc { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+.ak-tick { stroke: var(--fg); stroke-width: 1.6; stroke-linecap: round; }
+
+.ak-val {
+  height: 16px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.ak-label { color: var(--fg-3); font-size: 10.5px; line-height: 13px; white-space: nowrap; }
+
+/* The typed value: the value text's place, and the same look as the other number fields. */
+.ak-edit {
+  box-sizing: border-box;
+  width: 56px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--separator-strong);
+  border-radius: var(--radius-s);
+  background: var(--bg-field);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+}
+.ak-edit:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* A narrow window: the knob row wraps, the panel keeps its fields readable. */
+@media (max-width: 760px) {
+  .an-setwin { width: 300px; }
+  .an-knobs { gap: 4px; }
+  .ak { width: 54px; }
+}

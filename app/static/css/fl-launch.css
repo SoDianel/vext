@@ -1,0 +1,61 @@
+/* FL Studio: the Sync page's tools row (connection visor), the controller
+   setup inside Configuration > DAWs, and the preset picker dialog (js/fl-preset.js). Palette tokens only. */
+
+#fl-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 28px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius-m);
+  background: var(--bg-control);
+  box-shadow: 0 0 0 1px var(--separator), var(--shadow-1);
+}
+.fl-visor {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg);
+  font-size: 13px;
+}
+.fl-visor-setup {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fl-visor-light { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--vext-steel); }
+.fl-visor[data-state="running"] .fl-visor-light { background: var(--warn); }
+.fl-visor[data-state="connected"] .fl-visor-light { background: var(--ok); }
+
+.fl-launch-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+.fl-launch-controls label { display: flex; align-items: center; gap: 8px; }
+.fl-launch-path { overflow-wrap: anywhere; }
+
+.fl-launch-dialog {
+  width: min(560px, 90vw);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 24px;
+  color: var(--fg);
+  background: var(--bg-popover);
+  border: 1px solid var(--separator-strong);
+  border-radius: var(--radius-m);
+}
+.fl-launch-dialog::backdrop { background: color-mix(in srgb, var(--vext-black) 65%, transparent); }
+.fl-launch-choices { display: grid; gap: 8px; margin: 16px 0; }
+.fl-launch-choices button { text-align: left; }
+.fl-launch-choices span { display: block; overflow-wrap: anywhere; font-size: .85em; color: var(--fg-2); }

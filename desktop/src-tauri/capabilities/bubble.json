@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "bubble",
+  "description": "The VEXT app bubble: restores the main window, drags itself, clips its canvas, reads the cursor, hands focus to FL Studio and drags presets into it.",
+  "webviews": ["bubble"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "allow-bubble-restore",
+    "allow-bubble-expand",
+    "allow-bubble-cursor",
+    "allow-fl-focus",
+    "allow-fl-drag-preset"
+  ]
+}
